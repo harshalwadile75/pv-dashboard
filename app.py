@@ -1,4 +1,4 @@
-# Streamlit App: PVsyst-style Solar Dashboard with Enhanced Report + PDF Export
+# Streamlit App: PVsyst-style Solar Dashboard with Full Features and Safe Data Fallback
 
 import streamlit as st
 import pandas as pd
@@ -74,9 +74,9 @@ tmy, _ = iotools.get_pvgis_tmy(lat, lon)
 site = location.Location(lat, lon)
 solpos = site.get_solarposition(tmy.index)
 
-dni = tmy["DNI"] if "DNI" in tmy.columns else tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index))
-dhi = tmy["DHI"] if "DHI" in tmy.columns else tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index))
-ghi = tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index)
+dni = tmy.get("DNI", tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index)))
+dhi = tmy.get("DHI", tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index)))
+ghi = tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index))
 
 poa = irradiance.get_total_irradiance(
     tilt, azimuth, dni, ghi, dhi,
@@ -101,6 +101,35 @@ st.subheader("📊 System Performance Summary")
 st.metric("System Size (kW)", f"{system_kw:.2f}")
 st.metric("Annual Output (kWh)", f"{annual_kwh:.0f}")
 st.metric("Payback Period (years)", f"{payback:.1f}" if np.isfinite(payback) else "N/A")
+
+with st.expander("📆 Monthly Energy Output"):
+    fig, ax = plt.subplots()
+    monthly_energy.index = monthly_energy.index.strftime("%b")
+    ax.bar(monthly_energy.index, monthly_energy.values, color="green")
+    ax.set_ylabel("kWh")
+    st.pyplot(fig)
+
+with st.expander("📈 I-V and P-V Curve"):
+    v = np.linspace(0, 40, 100)
+    i = 13 * (1 - (v / 40) ** 1.4)
+    p = v * i
+    fig2, ax2 = plt.subplots()
+    ax2.plot(v, i, label="I-V", color="blue")
+    ax2b = ax2.twinx()
+    ax2b.plot(v, p, '--', color="orange", label="P-V")
+    ax2.set_xlabel("Voltage (V)")
+    ax2.set_ylabel("Current (A)", color="blue")
+    ax2b.set_ylabel("Power (W)", color="orange")
+    st.pyplot(fig2)
+
+with st.expander("🌞 POA Irradiance and Cell Temperature"):
+    fig3, ax3 = plt.subplots()
+    poa["poa_global"].plot(ax=ax3, color="red", label="POA (W/m²)")
+    ax3b = ax3.twinx()
+    temp_cell.plot(ax=ax3b, color="blue", label="Temp")
+    ax3.set_ylabel("POA (W/m²)", color="red")
+    ax3b.set_ylabel("Cell Temp (°C)", color="blue")
+    st.pyplot(fig3)
 
 # ----- PDF Export -----
 with st.expander("📄 Export PDF Report"):
@@ -127,7 +156,7 @@ with st.expander("📄 Export PDF Report"):
         pdf.output(pdf_output)
         st.download_button("📥 Download PDF", pdf_output.getvalue(), file_name="solar_report.pdf")
 
-# ----- Export to Excel -----
+# ----- Excel Export -----
 with st.expander("📥 Export Excel Report"):
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
