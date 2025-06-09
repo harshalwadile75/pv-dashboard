@@ -1,3 +1,8 @@
 streamlit
+pvlib
+pandas
 numpy
 matplotlib
+requests
+folium
+streamlit-folium
