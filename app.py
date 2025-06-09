@@ -1,4 +1,4 @@
-# Streamlit App: PVsyst-style Solar Dashboard with Enhanced Report
+# Streamlit App: PVsyst-style Solar Dashboard with Enhanced Report + PDF Export
 
 import streamlit as st
 import pandas as pd
@@ -10,6 +10,8 @@ import datetime
 from pvlib import location, irradiance, temperature, iotools
 from streamlit_folium import st_folium
 import folium
+from fpdf import FPDF
+import base64
 
 # ----- Streamlit App Configuration -----
 st.set_page_config("☀️ PVsyst Solar Report", layout="wide")
@@ -100,37 +102,33 @@ st.metric("System Size (kW)", f"{system_kw:.2f}")
 st.metric("Annual Output (kWh)", f"{annual_kwh:.0f}")
 st.metric("Payback Period (years)", f"{payback:.1f}" if np.isfinite(payback) else "N/A")
 
-with st.expander("📉 Monthly Energy Output"):
-    fig, ax = plt.subplots()
-    monthly_energy.index = monthly_energy.index.strftime("%b")
-    ax.bar(monthly_energy.index, monthly_energy.values, color="green")
-    ax.set_ylabel("kWh")
-    st.pyplot(fig)
+# ----- PDF Export -----
+with st.expander("📄 Export PDF Report"):
+    if st.button("📤 Generate PDF Report"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(190, 10, "Solar System Performance Report", ln=True, align="C")
 
-with st.expander("📈 I-V and P-V Curve"):
-    v = np.linspace(0, 40, 100)
-    i = 13 * (1 - (v / 40) ** 1.4)
-    p = v * i
-    fig2, ax2 = plt.subplots()
-    ax2.plot(v, i, label="I-V", color="blue")
-    ax2b = ax2.twinx()
-    ax2b.plot(v, p, '--', color="orange", label="P-V")
-    ax2.set_xlabel("Voltage (V)")
-    ax2.set_ylabel("Current (A)", color="blue")
-    ax2b.set_ylabel("Power (W)", color="orange")
-    st.pyplot(fig2)
+        pdf.set_font("Arial", size=12)
+        pdf.ln(10)
+        pdf.cell(190, 10, f"System Size: {system_kw:.2f} kW", ln=True)
+        pdf.cell(190, 10, f"Annual Output: {annual_kwh:.0f} kWh", ln=True)
+        pdf.cell(190, 10, f"System Cost: ${system_cost:,.0f}", ln=True)
+        pdf.cell(190, 10, f"Annual Savings: ${savings:,.0f}", ln=True)
+        pdf.cell(190, 10, f"Estimated Payback: {payback:.1f} years", ln=True)
 
-with st.expander("📊 POA Irradiance and Cell Temperature"):
-    fig3, ax3 = plt.subplots()
-    poa["poa_global"].plot(ax=ax3, color="red", label="POA (W/m²)")
-    ax3b = ax3.twinx()
-    temp_cell.plot(ax=ax3b, color="blue", label="Temp")
-    ax3.set_ylabel("POA (W/m²)", color="red")
-    ax3b.set_ylabel("Cell Temp (°C)", color="blue")
-    st.pyplot(fig3)
+        pdf.ln(10)
+        pdf.cell(190, 10, "Loss Breakdown:", ln=True)
+        pdf.cell(190, 10, f"Soiling: {soiling}%  Shading: {shading}%  Temp: {temp_loss}%", ln=True)
+        pdf.cell(190, 10, f"Mismatch: {mismatch}%  Wiring: {wiring}%  Inverter Eff: {inv_eff}%", ln=True)
+
+        pdf_output = io.BytesIO()
+        pdf.output(pdf_output)
+        st.download_button("📥 Download PDF", pdf_output.getvalue(), file_name="solar_report.pdf")
 
 # ----- Export to Excel -----
-with st.expander("📤 Export Report"):
+with st.expander("📥 Export Excel Report"):
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
         monthly_energy.to_frame("Monthly kWh").to_excel(writer, sheet_name="Monthly Output")
@@ -143,4 +141,4 @@ with st.expander("📤 Export Report"):
         }).to_excel(writer, sheet_name="Summary", index=False)
         poa.to_excel(writer, sheet_name="POA Data")
         temp_cell.to_frame("Cell Temp").to_excel(writer, sheet_name="Cell Temperature")
-    st.download_button("📥 Download Excel Report", buffer.getvalue(), file_name="pvsyst_sim_report.xlsx")
+    st.download_button("⬇️ Download Excel Report", buffer.getvalue(), file_name="pvsyst_sim_report.xlsx")
