@@ -6,3 +6,4 @@ matplotlib
 requests
 folium
 streamlit-folium
+xlsxwriter
