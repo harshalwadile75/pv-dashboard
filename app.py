@@ -85,18 +85,19 @@ tmy, meta = iotools.get_pvgis_tmy(lat, lon)
 site = location.Location(lat, lon, tz="Etc/GMT+5")
 solpos = site.get_solarposition(tmy.index)
 
-# Show available columns for debugging
-st.write("📋 TMY Columns Found:", list(tmy.columns))
+# Display available columns
+st.write("📋 TMY Columns:", list(tmy.columns))
 
-# Safe fallback for missing DNI/DHI
-dni = tmy["DNI"] if "DNI" in tmy.columns else (tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index))
-dhi = tmy["DHI"] if "DHI" in tmy.columns else (tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index))
+# Safe fallback for irradiance
+dni = tmy["DNI"] if "DNI" in tmy.columns else tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index))
+dhi = tmy["DHI"] if "DHI" in tmy.columns else tmy.get("GHI", pd.Series([0]*len(tmy), index=tmy.index))
+ghi = tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index)
 
 poa = irradiance.get_total_irradiance(
     surface_tilt=tilt,
     surface_azimuth=azimuth,
     dni=dni,
-    ghi=tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index),
+    ghi=ghi,
     dhi=dhi,
     solar_zenith=solpos["zenith"],
     solar_azimuth=solpos["azimuth"]
