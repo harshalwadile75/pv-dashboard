@@ -1,108 +1,100 @@
 import streamlit as st
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import io
+import requests
+from streamlit_folium import st_folium
+import folium
+from pvlib import location, irradiance, temperature, iotools
 
-st.set_page_config(page_title="Advanced Solar Dashboard", layout="wide")
-st.title("🔋 Advanced PV Module Simulation Dashboard")
+st.set_page_config(page_title="🌎 Solar Dashboard with Auto-Location & Map", layout="wide")
+st.title("🌞 Solar Dashboard with Auto Location & Map Picker")
 
-# --- Feature Description Panel ---
-with st.expander("ℹ️ Dashboard Functions and Future Upgrades"):
-    st.markdown("""
-    ### ✅ Current Dashboard Features
-    | Feature | What It Does |
-    |--------|---------------|
-    | 🌞 Title | Shows "Solar Dashboard" as a heading |
-    | 📝 Text Input | Lets you enter a location (like a city or coordinates) |
-    | 🎚️ Tilt Slider | Choose the tilt angle (0° flat to 90° vertical) |
-    | 🎚️ Azimuth Slider | Choose the azimuth angle (0–360°, which direction the panels face) |
-    | 🖥️ Display Output | Shows your selected location, tilt, and azimuth below the sliders |
+# Step 1: Select Location Input Mode
+st.sidebar.header("📍 Location Input")
+mode = st.sidebar.radio("Choose Location Mode", ["IP Auto-Detect", "Map Picker"])
 
-    ### 🔜 Upgrade Options (Coming Soon)
-    | Upgrade | What It Adds |
-    |--------|----------------|
-    | ☀️ Solar Simulation | Use real irradiance data and show energy output |
-    | 📉 PV Power Curves | Plot I-V and P-V curves of selected modules |
-    | 📦 Module & Inverter Picker | Choose Qcells, Canadian Solar, etc. from dropdown |
-    | 🔧 Losses & Conditions | Simulate shading, temperature effects, mismatch losses |
-    | 📊 Monthly Energy Graphs | Simulate daily/monthly output across the year |
-    | 💵 Cost & ROI Calculator | Calculate system cost, savings, payback |
-    | 📄 Export to PDF/CSV | Download summary of your system design |
-    """)
+if mode == "IP Auto-Detect":
+    st.sidebar.write("🌐 Detecting your location...")
+    try:
+        ip_info = requests.get("https://ipinfo.io").json()
+        loc = ip_info["loc"].split(",")
+        lat, lon = float(loc[0]), float(loc[1])
+        st.sidebar.success(f"📍 Location: {ip_info['city']} ({lat}, {lon})")
+    except:
+        st.sidebar.error("Unable to detect location. Please use map instead.")
+        lat, lon = 40.7128, -74.0060
+else:
+    st.sidebar.write("🗺️ Click on the map to select a location")
+    map_center = [20, 0]
+    m = folium.Map(location=map_center, zoom_start=2)
+    map_data = st_folium(m, height=350, returned_objects=["last_clicked"])
+    if map_data and map_data["last_clicked"]:
+        lat = map_data["last_clicked"]["lat"]
+        lon = map_data["last_clicked"]["lng"]
+        st.sidebar.success(f"📌 Selected: ({lat:.4f}, {lon:.4f})")
+    else:
+        lat, lon = 20.0, 0.0
 
-# --- Location & Orientation Inputs ---
-st.subheader("📍 Site Configuration")
-location = st.text_input("Enter location (city or coordinates)", value="New York")
-st.write(f"📍 Location: {location}")
-
-# --- Environmental Inputs ---
-st.sidebar.header("🌤️ Environmental Conditions")
-irradiance = st.sidebar.slider("Irradiance (W/m²)", 200, 1200, 1000)
-temperature = st.sidebar.slider("Module Temperature (°C)", 15, 75, 25)
-
-# --- System Configuration ---
-st.sidebar.header("🔧 System Configuration")
-tilt = st.sidebar.slider("Tilt angle (°)", 0, 90, 25)
+# PV System Configuration
+st.sidebar.header("⚙️ PV System")
+tilt = st.sidebar.slider("Tilt (°)", 0, 90, 25)
 azimuth = st.sidebar.slider("Azimuth (°)", 0, 360, 180)
-modules_series = st.sidebar.slider("Modules in Series", 1, 30, 15)
-modules_parallel = st.sidebar.slider("Strings in Parallel", 1, 10, 3)
-st.write(f"🧭 Tilt: {tilt}°, Azimuth: {azimuth}°")
+module_power = st.sidebar.selectbox("Module Power (W)", [400, 450])
+modules_series = st.sidebar.slider("Modules in Series", 5, 30, 15)
+modules_parallel = st.sidebar.slider("Parallel Strings", 1, 10, 2)
 
-# --- Module Parameters (Example Module) ---
-voc = 40.8  # Open Circuit Voltage (V)
-isc = 13.5  # Short Circuit Current (A)
-vmpp = 34.3 # Voltage at Max Power Point (V)
-impp = 12.7 # Current at Max Power Point (A)
-pmax = vmpp * impp  # Max Power (W)
-temp_coeff = -0.003  # Power Temp Coefficient per °C
+# Losses
+st.sidebar.header("🔧 Losses")
+soiling = st.sidebar.slider("Soiling Loss (%)", 0, 10, 2)
+shading = st.sidebar.slider("Shading Loss (%)", 0, 15, 3)
+temp_loss = st.sidebar.slider("Temp Loss (%)", 0, 10, 2)
+mismatch = st.sidebar.slider("Mismatch Loss (%)", 0, 5, 1)
+wiring = st.sidebar.slider("Wiring Loss (%)", 0, 5, 1)
+inverter_eff = st.sidebar.slider("Inverter Efficiency (%)", 90, 99, 97)
 
-# --- Loss Factors ---
-st.sidebar.header("⚡ Loss Factors")
-soiling_loss = st.sidebar.slider("Soiling Loss (%)", 0, 10, 2) / 100
-mismatch_loss = st.sidebar.slider("Mismatch Loss (%)", 0, 10, 1) / 100
-temp_loss = st.sidebar.slider("Temperature Loss (%)", 0, 10, 3) / 100
-total_loss_factor = 1 - (soiling_loss + mismatch_loss + temp_loss)
+# Load TMY Data
+st.subheader("☀️ Loading TMY Weather Data...")
+try:
+    tmy, meta = iotools.get_pvgis_tmy(lat, lon)
+    site = location.Location(lat, lon, tz="Etc/GMT+5", altitude=meta.get("elevation", 10))
+    tmy.index.name = "Time"
+    st.success(f"TMY data loaded for {meta['location']} at {lat:.2f}, {lon:.2f}")
+except Exception as e:
+    st.error(f"Failed to fetch TMY data: {e}")
+    st.stop()
 
-# --- Power Calculations ---
-adjusted_pmax = pmax * (irradiance / 1000) * (1 + temp_coeff * (temperature - 25)) * total_loss_factor
-total_dc_power = adjusted_pmax * modules_series * modules_parallel
-total_voc = voc * modules_series
-total_vmpp = vmpp * modules_series
-total_isc = isc * modules_parallel
-total_impp = impp * modules_parallel
+# Calculate Irradiance
+solpos = site.get_solarposition(tmy.index)
+poa = irradiance.get_total_irradiance(
+    surface_tilt=tilt,
+    surface_azimuth=azimuth,
+    dni=tmy["DNI"],
+    ghi=tmy["GHI"],
+    dhi=tmy["DHI"],
+    solar_zenith=solpos["zenith"],
+    solar_azimuth=solpos["azimuth"]
+)
 
-# --- Output Summary ---
-st.subheader("📊 System Output Summary")
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Voc", f"{total_voc:.2f} V")
-col1.metric("Total Vmpp", f"{total_vmpp:.2f} V")
-col2.metric("Total Isc", f"{total_isc:.2f} A")
-col2.metric("Total Impp", f"{total_impp:.2f} A")
-col3.metric("DC Power Output", f"{total_dc_power/1000:.2f} kW")
-col3.metric("Module Efficiency", "22.3 %")
+temps = temperature.sapm_cell(poa["poa_global"], tmy["TempAir"], 2)
+system_kw = module_power * modules_series * modules_parallel / 1000
+gross_power = poa["poa_global"] / 1000 * system_kw
+total_losses = (soiling + shading + temp_loss + mismatch + wiring) / 100
+net_power = gross_power * (1 - total_losses) * (inverter_eff / 100)
+monthly_energy = net_power.resample("M").sum()
 
-# --- I-V and P-V Curves ---
-st.subheader("🔍 I-V and P-V Curve")
-v = np.linspace(0, voc, 100)
-i = isc * (1 - (v / voc)**1.5)
-p = v * i
+# Display Summary
+annual_energy = monthly_energy.sum()
+st.subheader("📊 System Performance")
+col1, col2 = st.columns(2)
+col1.metric("System Size", f"{system_kw:.2f} kW")
+col2.metric("Annual Energy", f"{annual_energy:.0f} kWh")
 
-fig, ax1 = plt.subplots()
-ax1.plot(v, i, 'b-', label="I-V Curve")
-ax1.set_xlabel("Voltage (V)")
-ax1.set_ylabel("Current (A)", color='b')
-ax2 = ax1.twinx()
-ax2.plot(v, p, 'g--', label="P-V Curve")
-ax2.set_ylabel("Power (W)", color='g')
+# Plot Monthly Energy
+st.subheader("📆 Monthly Energy Production")
+fig, ax = plt.subplots()
+monthly_energy.index = monthly_energy.index.strftime("%b")
+ax.bar(monthly_energy.index, monthly_energy.values, color="orange")
+ax.set_ylabel("kWh")
 st.pyplot(fig)
-
-# --- Layout Visualization ---
-st.subheader("📐 Module Layout (Series x Parallel)")
-layout_fig, ax = plt.subplots()
-for i in range(modules_parallel):
-    for j in range(modules_series):
-        ax.plot(j, -i, 'ks', markersize=12)
-ax.set_xlim(-1, modules_series)
-ax.set_ylim(-modules_parallel, 1)
-ax.set_title("Module Strings")
-ax.axis("off")
-st.pyplot(layout_fig)
