@@ -85,14 +85,18 @@ tmy, meta = iotools.get_pvgis_tmy(lat, lon)
 site = location.Location(lat, lon, tz="Etc/GMT+5")
 solpos = site.get_solarposition(tmy.index)
 
-dni = tmy["DNI"] if "DNI" in tmy.columns else tmy["GHI"]
-dhi = tmy["DHI"] if "DHI" in tmy.columns else tmy["GHI"]
+# Show available columns for debugging
+st.write("📋 TMY Columns Found:", list(tmy.columns))
+
+# Safe fallback for missing DNI/DHI
+dni = tmy["DNI"] if "DNI" in tmy.columns else (tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index))
+dhi = tmy["DHI"] if "DHI" in tmy.columns else (tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index))
 
 poa = irradiance.get_total_irradiance(
     surface_tilt=tilt,
     surface_azimuth=azimuth,
     dni=dni,
-    ghi=tmy["GHI"],
+    ghi=tmy["GHI"] if "GHI" in tmy.columns else pd.Series([0]*len(tmy), index=tmy.index),
     dhi=dhi,
     solar_zenith=solpos["zenith"],
     solar_azimuth=solpos["azimuth"]
@@ -118,7 +122,7 @@ st.subheader("📊 System Summary")
 col1, col2, col3 = st.columns(3)
 col1.metric("System Size (kW)", f"{system_kw:.2f}")
 col2.metric("Annual Output (kWh)", f"{annual_energy:.0f}")
-col3.metric("Payback (Years)", f"{payback:.1f}")
+col3.metric("Payback (Years)", f"{payback:.1f}" if not np.isnan(payback) else "N/A")
 
 # Monthly Bar Chart
 st.subheader("📆 Monthly Energy Output")
