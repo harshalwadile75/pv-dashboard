@@ -3,7 +3,10 @@ pvlib
 pandas
 numpy
 matplotlib
+geopy
+plotly
+openpyxl
+PyPDF2
 requests
-folium
-streamlit-folium
-xlsxwriter
+timezonefinder
+fpdf
