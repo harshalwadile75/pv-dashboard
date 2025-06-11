@@ -1,12 +1,4 @@
 streamlit
 pvlib
 pandas
-numpy
-matplotlib
-geopy
-plotly
-openpyxl
-PyPDF2
 requests
-timezonefinder
-fpdf
