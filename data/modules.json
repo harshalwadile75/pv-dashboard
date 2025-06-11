@@ -1,0 +1,20 @@
+[
+  {
+    "brand": "Qcells",
+    "model": "Q.PEAK DUO ML-G10+",
+    "power": 410,
+    "efficiency": 20.9
+  },
+  {
+    "brand": "Canadian Solar",
+    "model": "HiKu6",
+    "power": 450,
+    "efficiency": 21.3
+  },
+  {
+    "brand": "LONGi",
+    "model": "Hi-MO 5m",
+    "power": 500,
+    "efficiency": 21.0
+  }
+]
