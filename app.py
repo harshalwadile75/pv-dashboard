@@ -1,46 +1,71 @@
 import streamlit as st
-from utils.weather import get_tmy_data
-from utils.simulation import run_simulation
-from utils.financials import estimate_financials
-from utils.export import export_pdf
-from config import LOCATION_DEFAULT
+import pandas as pd
+import requests
+from pvlib.pvsystem import PVSystem
+from pvlib.modelchain import ModelChain
+from pvlib.location import Location
 
-st.set_page_config("PV Simulation Dashboard", layout="wide")
+st.set_page_config("Simple PV Analyzer", layout="wide")
+st.title("🔆 Simple PV Analyzer (PVsyst-style)")
 
-st.title("🔆 PVsyst-Style Solar Dashboard")
-
+# --- User Inputs ---
 with st.sidebar:
-    st.header("📍 Location")
-    lat = st.number_input("Latitude", value=LOCATION_DEFAULT['latitude'])
-    lon = st.number_input("Longitude", value=LOCATION_DEFAULT['longitude'])
-    tmy_data = get_tmy_data(lat, lon)
-
-    st.header("⚙️ System Setup")
-    module_power = st.selectbox("Module Power (W)", [400, 450, 500])
-    tilt = st.slider("Tilt (°)", 0, 60, 30)
+    st.header("System Configuration")
+    lat = st.number_input("Latitude", value=34.05)
+    lon = st.number_input("Longitude", value=-118.25)
+    system_size_kw = st.number_input("System Size (kW)", value=5.0)
+    tilt = st.slider("Tilt Angle (°)", 0, 60, 25)
     azimuth = st.slider("Azimuth (°)", 0, 360, 180)
+    cost_per_watt = st.number_input("System Cost ($/W)", 0.5, 5.0, 1.2)
+    rate = st.number_input("Electricity Rate ($/kWh)", 0.05, 0.50, 0.12)
 
-    st.header("💸 Financials")
-    cost_watt = st.number_input("System Cost ($/W)", 0.5, 5.0, 1.2)
-    electricity_rate = st.number_input("Rate ($/kWh)", 0.05, 0.50, 0.12)
+# --- Get Live Weather Data ---
+def get_weather(lat, lon):
+    url = (
+        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+        "&hourly=global_horizontal_irradiance,temperature_2m&timezone=UTC"
+    )
+    r = requests.get(url)
+    data = r.json()
+    time = pd.to_datetime(data['hourly']['time'])
+    ghi = data['hourly']['global_horizontal_irradiance']
+    temp = data['hourly']['temperature_2m']
+    df = pd.DataFrame({'ghi': ghi, 'temp_air': temp}, index=time)
+    df.index.name = 'time'
+    df = df.resample('M').mean()
+    return df
 
-st.subheader("☀️ Monthly Solar Simulation")
-energy_df, iv_curve = run_simulation(tmy_data, module_power, tilt, azimuth)
-st.line_chart(energy_df)
+st.subheader("📡 Fetching Weather Data...")
+weather = get_weather(lat, lon)
+st.write(weather.head())
 
-st.subheader("📈 Performance Metrics")
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Annual Energy (kWh)", round(energy_df['Energy (kWh)'].sum(), 2))
-with col2:
-    st.metric("Capacity Factor (%)", round((energy_df['Energy (kWh)'].sum() / (module_power*365/1000))*100, 2))
+# --- Simulate Performance ---
+def simulate(weather, size_kw, tilt, azimuth):
+    system = PVSystem(surface_tilt=tilt, surface_azimuth=azimuth,
+                      module_parameters={'pdc0': size_kw * 1000})
+    location = Location(lat, lon, 'UTC')
+    mc = ModelChain(system, location)
+    mc.weather = weather.rename(columns={'ghi': 'poa_global', 'temp_air': 'temp_air'})
+    mc.run_model_from_poa_irradiance(mc.weather['poa_global'], mc.weather['temp_air'])
+    monthly_energy = mc.ac.resample('M').sum() / 1000
+    df = pd.DataFrame({"Month": monthly_energy.index.month_name(), "Energy (kWh)": monthly_energy.values})
+    df.set_index("Month", inplace=True)
+    return df, mc
 
-st.subheader("💰 ROI and Cost")
-roi_df = estimate_financials(energy_df, cost_watt, electricity_rate, module_power)
-st.dataframe(roi_df)
+energy_df, mc = simulate(weather, system_size_kw, tilt, azimuth)
 
-st.subheader("📤 Export Report")
-if st.button("Export to PDF"):
-    pdf_file = export_pdf(lat, lon, energy_df, roi_df)
-    st.success("PDF Exported Successfully")
-    st.download_button("Download PDF", data=pdf_file, file_name="solar_report.pdf")
+st.subheader("📊 Monthly Energy Output")
+st.bar_chart(energy_df)
+
+# --- Summary Metrics ---
+st.subheader("📈 Key Metrics")
+annual_kwh = energy_df['Energy (kWh)'].sum()
+cost = system_size_kw * 1000 * cost_per_watt
+savings = annual_kwh * rate
+payback = cost / savings if savings > 0 else None
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Annual Output", f"{annual_kwh:.2f} kWh")
+col2.metric("Estimated Savings", f"${savings:.2f}")
+col3.metric("Payback Period", f"{payback:.1f} years" if payback else "N/A")
+
