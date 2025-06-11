@@ -8,7 +8,20 @@ from pvlib.location import Location
 st.set_page_config("PV System Simulator", layout="wide")
 st.title("🔆 PVsyst-Like Solar Simulation App")
 
-# --- Embedded Module & Inverter Data ---
+# --- Cities with coordinates ---
+cities = [
+    {"city": "Los Angeles, USA", "lat": 34.05, "lon": -118.25},
+    {"city": "New York, USA", "lat": 40.71, "lon": -74.01},
+    {"city": "London, UK", "lat": 51.51, "lon": -0.13},
+    {"city": "Tokyo, Japan", "lat": 35.68, "lon": 139.76},
+    {"city": "Delhi, India", "lat": 28.61, "lon": 77.20},
+    {"city": "Berlin, Germany", "lat": 52.52, "lon": 13.41},
+    {"city": "Sydney, Australia", "lat": -33.87, "lon": 151.21},
+    {"city": "São Paulo, Brazil", "lat": -23.55, "lon": -46.63},
+    {"city": "Cairo, Egypt", "lat": 30.04, "lon": 31.24},
+    {"city": "Cape Town, South Africa", "lat": -33.92, "lon": 18.42}
+]
+
 modules = [
     {"brand": "Qcells", "model": "Q.PEAK DUO ML-G10+", "power": 410, "efficiency": 20.9},
     {"brand": "Canadian Solar", "model": "HiKu6", "power": 450, "efficiency": 21.3},
@@ -23,12 +36,15 @@ inverters = [
 
 module_models = [f"{m['brand']} - {m['model']} ({m['power']}W)" for m in modules]
 inverter_models = [f"{i['brand']} - {i['model']} ({i['rated_power']}W)" for i in inverters]
+city_names = [c['city'] for c in cities]
 
 # --- Sidebar Inputs ---
 with st.sidebar:
     st.header("📍 Location & Setup")
-    lat = st.number_input("Latitude", -90.0, 90.0, 34.05)
-    lon = st.number_input("Longitude", -180.0, 180.0, -118.25)
+    selected_city = st.selectbox("Select City", city_names)
+    city_data = next(c for c in cities if c['city'] == selected_city)
+    lat, lon = city_data['lat'], city_data['lon']
+
     tilt = st.slider("Tilt Angle (°)", 0, 60, 25)
     azimuth = st.slider("Azimuth (°)", 0, 360, 180)
 
@@ -70,7 +86,7 @@ if simulate:
     mod = modules[module_models.index(selected_module)]
     inv = inverters[inverter_models.index(selected_inverter)]
 
-    st.subheader("☀️ Weather Data")
+    st.subheader(f"☀️ Weather Data for {selected_city}")
     weather = get_weather(lat, lon)
     if weather.empty:
         st.stop()
@@ -104,7 +120,7 @@ if simulate:
     cost = system_kw * 1000 * cost_per_watt
     savings = annual_kwh * rate
     payback = cost / savings if savings > 0 else None
-    pr = annual_kwh / (system_kw * 365 * 5) * 100  # approx 5 sun hours/day
+    pr = annual_kwh / (system_kw * 365 * 5) * 100  # rough est
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Annual Output", f"{annual_kwh:.1f} kWh")
