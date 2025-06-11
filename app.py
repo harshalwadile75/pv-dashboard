@@ -11,8 +11,8 @@ st.title("🔆 PVsyst-Style PV Simulation App")
 # --- Sidebar Inputs ---
 with st.sidebar:
     st.header("System Inputs")
-    lat = st.number_input("Latitude", value=34.05)
-    lon = st.number_input("Longitude", value=-118.25)
+    lat = float(st.number_input("Latitude", value=34.05))
+    lon = float(st.number_input("Longitude", value=-118.25))
     system_kw = st.number_input("System Size (kW)", value=5.0)
     tilt = st.slider("Tilt Angle (°)", 0, 60, 25)
     azimuth = st.slider("Azimuth (°)", 0, 360, 180)
@@ -21,19 +21,24 @@ with st.sidebar:
 
 # --- Weather Function ---
 def get_weather(lat, lon):
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        st.error("Invalid latitude or longitude values.")
+        return pd.DataFrame()
+
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={lat}&longitude={lon}"
         "&hourly=global_horizontal_irradiance,temperature_2m&timezone=UTC"
     )
-    r = requests.get(url)
-    if r.status_code != 200:
-        st.error(f"Failed to fetch weather: {r.status_code}")
+    response = requests.get(url)
+
+    if response.status_code != 200:
+        st.error(f"Failed to fetch weather: {response.status_code}")
         return pd.DataFrame()
 
-    data = r.json()
+    data = response.json()
     if 'hourly' not in data:
-        st.error("Weather data unavailable for this location.")
+        st.error("Incomplete weather data returned.")
         return pd.DataFrame()
 
     time = pd.to_datetime(data['hourly']['time'])
