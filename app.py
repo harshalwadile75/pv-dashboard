@@ -21,8 +21,14 @@ with st.sidebar:
 
 # --- Weather Function ---
 def get_weather(lat, lon):
-    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-        st.error("Invalid latitude or longitude values.")
+    try:
+        lat = float(lat)
+        lon = float(lon)
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            st.error("Latitude must be between -90 and 90, and longitude between -180 and 180.")
+            return pd.DataFrame()
+    except ValueError:
+        st.error("Latitude and Longitude must be valid numbers.")
         return pd.DataFrame()
 
     url = (
@@ -30,23 +36,25 @@ def get_weather(lat, lon):
         f"latitude={lat}&longitude={lon}"
         "&hourly=global_horizontal_irradiance,temperature_2m&timezone=UTC"
     )
-    response = requests.get(url)
 
+    st.write(f"Fetching weather for: lat={lat}, lon={lon}")  # Debug output
+
+    response = requests.get(url)
     if response.status_code != 200:
         st.error(f"Failed to fetch weather: {response.status_code}")
         return pd.DataFrame()
 
-    data = response.json()
-    if 'hourly' not in data:
-        st.error("Incomplete weather data returned.")
+    try:
+        data = response.json()
+        time = pd.to_datetime(data['hourly']['time'])
+        ghi = data['hourly']['global_horizontal_irradiance']
+        temp = data['hourly']['temperature_2m']
+        df = pd.DataFrame({'ghi': ghi, 'temp_air': temp}, index=time)
+        df.index.name = 'time'
+        return df.resample('M').mean()
+    except Exception as e:
+        st.error(f"Error processing weather data: {e}")
         return pd.DataFrame()
-
-    time = pd.to_datetime(data['hourly']['time'])
-    ghi = data['hourly']['global_horizontal_irradiance']
-    temp = data['hourly']['temperature_2m']
-    df = pd.DataFrame({'ghi': ghi, 'temp_air': temp}, index=time)
-    df.index.name = 'time'
-    return df.resample('M').mean()
 
 # --- Get Weather ---
 st.subheader("☀️ Weather Data")
@@ -68,9 +76,10 @@ def simulate(weather, system_kw, tilt, azimuth):
     df.set_index("Month", inplace=True)
     return df
 
+# --- Run Simulation ---
 energy_df = simulate(weather, system_kw, tilt, azimuth)
 
-# --- Display Output ---
+# --- Output Charts ---
 st.subheader("📊 Monthly Energy Output")
 st.bar_chart(energy_df)
 
