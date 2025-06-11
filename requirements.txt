@@ -2,4 +2,3 @@ streamlit
 pvlib
 pandas
 requests
-
