@@ -1,0 +1,20 @@
+[
+  {
+    "brand": "SMA",
+    "model": "Sunny Boy 5.0",
+    "rated_power": 5000,
+    "efficiency": 97.5
+  },
+  {
+    "brand": "Huawei",
+    "model": "SUN2000-6KTL",
+    "rated_power": 6000,
+    "efficiency": 98.6
+  },
+  {
+    "brand": "Fronius",
+    "model": "Primo 5.0",
+    "rated_power": 5000,
+    "efficiency": 97.8
+  }
+]
