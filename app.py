@@ -57,13 +57,11 @@ with st.sidebar:
     rate = st.number_input("Electricity Rate ($/kWh)", 0.05, 0.50, 0.12)
     simulate = st.button("Run Simulation")
 
-# --- Weather Fetch Function ---
+# --- Weather Fetch Function using Tomorrow.io ---
 def get_weather(lat, lon):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?"
-        f"latitude={lat}&longitude={lon}"
-        "&hourly=global_horizontal_irradiance,temperature_2m&timezone=UTC"
-    )
+    api_key = "YOUR_TOMORROW_IO_API_KEY"  # Replace with your actual Tomorrow.io API key
+    url = f"https://api.tomorrow.io/v4/weather/forecast?location={lat},{lon}&fields=solarGHI,temperature&timesteps=1h&apikey={api_key}"
+
     try:
         r = requests.get(url)
         if r.status_code != 200:
@@ -71,14 +69,21 @@ def get_weather(lat, lon):
             return pd.DataFrame()
 
         data = r.json()
-        time = pd.to_datetime(data['hourly']['time'])
-        ghi = data['hourly']['global_horizontal_irradiance']
-        temp = data['hourly']['temperature_2m']
-        df = pd.DataFrame({'ghi': ghi, 'temp_air': temp}, index=time)
+        timeline = data.get("timelines", {}).get("hourly", [])
+        if not timeline:
+            st.error("No hourly weather data available.")
+            return pd.DataFrame()
+
+        records = timeline[0]['intervals']
+        times = [pd.to_datetime(r['startTime']) for r in records]
+        ghi = [r['values'].get('solarGHI', 0) for r in records]
+        temp = [r['values'].get('temperature', 20) for r in records]
+
+        df = pd.DataFrame({'ghi': ghi, 'temp_air': temp}, index=times)
         return df.resample('M').mean()
 
     except Exception as e:
-        st.error(f"Error fetching weather: {e}")
+        st.error(f"Error fetching or parsing weather: {e}")
         return pd.DataFrame()
 
 # --- Main Simulation ---
@@ -120,7 +125,7 @@ if simulate:
     cost = system_kw * 1000 * cost_per_watt
     savings = annual_kwh * rate
     payback = cost / savings if savings > 0 else None
-    pr = annual_kwh / (system_kw * 365 * 5) * 100  # rough est
+    pr = annual_kwh / (system_kw * 365 * 5) * 100  # ~5 hours/day average
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Annual Output", f"{annual_kwh:.1f} kWh")
