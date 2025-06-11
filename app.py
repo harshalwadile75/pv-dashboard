@@ -59,7 +59,7 @@ with st.sidebar:
 
 # --- Weather Fetch Function using Tomorrow.io ---
 def get_weather(lat, lon):
-    api_key = "YOUR_TOMORROW_IO_API_KEY"  # Replace with your actual Tomorrow.io API key
+    api_key = F9mVExxjAYHfP46uUmRurwhkPdzr6ooO  # Replace with your actual Tomorrow.io API key
     url = f"https://api.tomorrow.io/v4/weather/forecast?location={lat},{lon}&fields=solarGHI,temperature&timesteps=1h&apikey={api_key}"
 
     try:
