@@ -23,27 +23,28 @@ cities = [
 ]
 
 modules = [
-    {"brand": "Qcells", "model": "Q.PEAK DUO ML-G10+", "power": 410, "efficiency": 20.9},
-    {"brand": "Canadian Solar", "model": "HiKu6", "power": 450, "efficiency": 21.3},
-    {"brand": "LONGi", "model": "Hi-MO 5m", "power": 500, "efficiency": 21.0}
+    {"brand": "Qcells", "model": "Q.PEAK DUO ML-G10+", "power": 410},
+    {"brand": "Canadian Solar", "model": "HiKu6", "power": 450},
+    {"brand": "LONGi", "model": "Hi-MO 5m", "power": 500}
 ]
 
 inverters = [
-    {"brand": "SMA", "model": "Sunny Boy 5.0", "rated_power": 5000, "efficiency": 97.5},
-    {"brand": "Huawei", "model": "SUN2000-6KTL", "rated_power": 6000, "efficiency": 98.6},
-    {"brand": "Fronius", "model": "Primo 5.0", "rated_power": 5000, "efficiency": 97.8}
+    {"brand": "SMA", "model": "Sunny Boy 5.0", "rated_power": 5000},
+    {"brand": "Huawei", "model": "SUN2000-6KTL", "rated_power": 6000},
+    {"brand": "Fronius", "model": "Primo 5.0", "rated_power": 5000}
 ]
 
+# --- Dropdown menus ---
+city_names = [c["city"] for c in cities]
 module_models = [f"{m['brand']} - {m['model']} ({m['power']}W)" for m in modules]
 inverter_models = [f"{i['brand']} - {i['model']} ({i['rated_power']}W)" for i in inverters]
-city_names = [c['city'] for c in cities]
 
-# --- Sidebar Inputs ---
+# --- Sidebar ---
 with st.sidebar:
     st.header("📍 Location & Setup")
     selected_city = st.selectbox("Select City", city_names)
-    city_data = next(c for c in cities if c['city'] == selected_city)
-    lat, lon = city_data['lat'], city_data['lon']
+    city_data = next(c for c in cities if c["city"] == selected_city)
+    lat, lon = city_data["lat"], city_data["lon"]
 
     tilt = st.slider("Tilt Angle (°)", 0, 60, 25)
     azimuth = st.slider("Azimuth (°)", 0, 360, 180)
@@ -57,10 +58,14 @@ with st.sidebar:
     rate = st.number_input("Electricity Rate ($/kWh)", 0.05, 0.50, 0.12)
     simulate = st.button("Run Simulation")
 
-# --- Weather Fetch Function using Tomorrow.io ---
+# --- Get weather using Tomorrow.io ---
 def get_weather(lat, lon):
-    api_key = "F9mVExxjAYHfP46uUmRurwhkPdzr6ooO"  # Replace with your actual Tomorrow.io API key
-    url = f"https://api.tomorrow.io/v4/weather/forecast?location={lat},{lon}&fields=solarGHI,temperature&timesteps=1h&apikey={api_key}"
+    api_key = "F9mVExxjAYHfP46uUmRurwhkPdzr6ooO"  # Replace with your actual API key
+    url = (
+        f"https://api.tomorrow.io/v4/weather/forecast?"
+        f"location={lat},{lon}&fields=solarGHI,temperature"
+        f"&timesteps=1h&apikey={api_key}"
+    )
 
     try:
         r = requests.get(url)
@@ -69,24 +74,29 @@ def get_weather(lat, lon):
             return pd.DataFrame()
 
         data = r.json()
-        timeline = data.get("timelines", {}).get("hourly", [])
-        if not timeline:
-            st.error("No hourly weather data available.")
+        timelines = data.get("timelines", {})
+        hourly = timelines.get("hourly", [])
+        if not hourly or "intervals" not in hourly[0]:
+            st.error("No hourly weather intervals found.")
             return pd.DataFrame()
 
-        records = timeline[0]['intervals']
-        times = [pd.to_datetime(r['startTime']) for r in records]
-        ghi = [r['values'].get('solarGHI', 0) for r in records]
-        temp = [r['values'].get('temperature', 20) for r in records]
+        intervals = hourly[0]["intervals"]
+        if not intervals:
+            st.error("Hourly intervals are empty.")
+            return pd.DataFrame()
 
-        df = pd.DataFrame({'ghi': ghi, 'temp_air': temp}, index=times)
-        return df.resample('M').mean()
+        times = [pd.to_datetime(i["startTime"]) for i in intervals]
+        ghi = [i["values"].get("solarGHI", 0) for i in intervals]
+        temp = [i["values"].get("temperature", 25) for i in intervals]
+
+        df = pd.DataFrame({"ghi": ghi, "temp_air": temp}, index=times)
+        return df.resample("M").mean()
 
     except Exception as e:
         st.error(f"Error fetching or parsing weather: {e}")
         return pd.DataFrame()
 
-# --- Main Simulation ---
+# --- Main App Logic ---
 if simulate:
     mod = modules[module_models.index(selected_module)]
     inv = inverters[inverter_models.index(selected_inverter)]
@@ -108,7 +118,7 @@ if simulate:
     mc = ModelChain(system, location)
     mc.weather = weather.rename(columns={'ghi': 'poa_global', 'temp_air': 'temp_air'})
     mc.run_model_from_poa_irradiance(mc.weather['poa_global'], mc.weather['temp_air'])
-    energy = mc.ac.resample('M').sum() / 1000
+    energy = mc.ac.resample("M").sum() / 1000
 
     df = pd.DataFrame({
         "Month": energy.index.month_name(),
@@ -121,11 +131,11 @@ if simulate:
 
     st.subheader("📈 System Insights")
     annual_kwh = df["Energy (kWh)"].sum()
-    system_kw = mod['power'] / 1000
+    system_kw = mod["power"] / 1000
     cost = system_kw * 1000 * cost_per_watt
     savings = annual_kwh * rate
     payback = cost / savings if savings > 0 else None
-    pr = annual_kwh / (system_kw * 365 * 5) * 100  # ~5 hours/day average
+    pr = annual_kwh / (system_kw * 365 * 5) * 100  # Approximation
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Annual Output", f"{annual_kwh:.1f} kWh")
