@@ -16,12 +16,22 @@ except FileNotFoundError:
 components = bom_df["Component"].unique()
 selections = {}
 
-st.sidebar.header("🔧 Select BOM Components")
+# --- Encapsulant Front & Rear Section (Clear Layout) ---
+st.sidebar.header("🧪 Encapsulant Selection")
+for encap_side in ["Encapsulant - Front", "Encapsulant - Rear"]:
+    options = bom_df[bom_df["Component"] == encap_side]["Type"].unique()
+    selection = st.sidebar.selectbox(f"{encap_side}", options, key=encap_side)
+    selected_row = bom_df[(bom_df["Component"] == encap_side) & (bom_df["Type"] == selection)].iloc[0]
+    selections[encap_side] = selected_row
+
+# --- Other BOM Components ---
+st.sidebar.header("🧱 Select Other BOM Components")
 for component in components:
-    options = bom_df[bom_df["Component"] == component]["Type"].unique()
-    selection = st.sidebar.selectbox(f"{component}", options, key=component)
-    selected_row = bom_df[(bom_df["Component"] == component) & (bom_df["Type"] == selection)].iloc[0]
-    selections[component] = selected_row
+    if "Encapsulant" not in component:
+        options = bom_df[bom_df["Component"] == component]["Type"].unique()
+        selection = st.sidebar.selectbox(f"{component}", options, key=component)
+        selected_row = bom_df[(bom_df["Component"] == component) & (bom_df["Type"] == selection)].iloc[0]
+        selections[component] = selected_row
 
 # --- Degradation Parameters ---
 st.sidebar.header("🌡️ Degradation Settings")
@@ -30,8 +40,8 @@ damp_heat = st.sidebar.slider("Damp Heat (Hours)", 0, 5000, 2000)
 uv_dose = st.sidebar.slider("UV Dosage (kWh/m²)", 0, 1000, 300)
 
 # --- Select Test Protocol ---
-st.sidebar.header("🧪 Test Protocol")
-profile = st.sidebar.selectbox("Select", ["None", "IEC Basic", "PVEL Scorecard", "RETC MQI"])
+st.sidebar.header("📋 Test Protocol")
+profile = st.sidebar.selectbox("Standard", ["None", "IEC Basic", "PVEL Scorecard", "RETC MQI"])
 test_profiles = {
     "None": {},
     "IEC Basic": {"TC200": 0.5, "DH1000": 1.0, "UV": 0.3},
@@ -41,32 +51,31 @@ test_profiles = {
 selected_tests = test_profiles.get(profile, {})
 total_test_impact = sum(selected_tests.values())
 
-# --- Degradation Models per Encapsulant and Backsheet ---
+# --- Material Factors ---
 encap_degradation = {
     "EVA": {"UV": 1.2, "PID": 1.3},
     "POE": {"UV": 0.7, "PID": 0.5},
     "EPE": {"UV": 1.0, "PID": 1.0}
 }
-
 backsheet_degradation = {
     "TPT": {"DH": 1.0},
     "PET": {"DH": 1.3},
     "Co-extruded": {"DH": 0.9}
 }
 
-def get_factor(encap, stress):
+def get_encap_factor(material, stress):
     for key in encap_degradation:
-        if key in encap:
+        if key in material:
             return encap_degradation[key].get(stress, 1.0)
     return 1.0
 
-def get_backsheet_factor(backsheet):
+def get_backsheet_factor(material):
     for key in backsheet_degradation:
-        if key in backsheet:
+        if key in material:
             return backsheet_degradation[key].get("DH", 1.0)
     return 1.0
 
-# --- Arrhenius Degradation ---
+# --- Arrhenius Model ---
 def arrhenius(temp, Ea=0.7, Tref=298):
     k = 8.617e-5
     T = temp + 273.15
@@ -75,27 +84,28 @@ def arrhenius(temp, Ea=0.7, Tref=298):
 accel_factor = arrhenius(avg_temp)
 base_deg = 0.5
 
-# --- Fetch Material-Based Multipliers ---
-front_encap = selections.get("Encapsulant - Front", {}).get("Type", "")
-rear_encap = selections.get("Encapsulant - Rear", {}).get("Type", "")
-backsheet = selections.get("Backsheet", {}).get("Type", "")
+# --- Get Material-Based Multipliers ---
+front_encap = selections["Encapsulant - Front"]["Type"]
+rear_encap = selections["Encapsulant - Rear"]["Type"]
+backsheet = selections["Backsheet"]["Type"]
 
-uv_factor = (get_factor(front_encap, "UV") + get_factor(rear_encap, "UV")) / 2
-pid_factor = (get_factor(front_encap, "PID") + get_factor(rear_encap, "PID")) / 2
+uv_factor = (get_encap_factor(front_encap, "UV") + get_encap_factor(rear_encap, "UV")) / 2
+pid_factor = (get_encap_factor(front_encap, "PID") + get_encap_factor(rear_encap, "PID")) / 2
 dh_factor = get_backsheet_factor(backsheet)
 
-# --- Compute Overall Degradation Rate ---
+# --- Calculate Final Degradation Rate ---
 deg_rate = (
     base_deg * accel_factor +
     damp_heat * 0.0001 * dh_factor +
     total_test_impact * 0.05 * np.mean([uv_factor, pid_factor])
 )
 
-simulate = st.sidebar.button("Run Simulation")
+# --- Run Simulation ---
+simulate = st.sidebar.button("▶️ Run Simulation")
 
 if simulate:
-    st.subheader("📋 Bill of Materials")
-    bom_display = pd.DataFrame([
+    st.subheader("📋 Bill of Materials (Selected)")
+    bom_table = pd.DataFrame([
         {
             "Component": comp,
             "Material": row["Type"],
@@ -105,7 +115,7 @@ if simulate:
         }
         for comp, row in selections.items()
     ])
-    st.table(bom_display)
+    st.table(bom_table)
 
     st.subheader("📉 Degradation & Reliability Metrics")
     year_1_deg = deg_rate
@@ -113,14 +123,17 @@ if simulate:
     reliability = max(0, 100 - year_25_loss)
 
     st.metric("Arrhenius Factor", f"{accel_factor:.2f}")
-    st.metric("Degradation Rate (Year 1)", f"{year_1_deg:.2f}%")
+    st.metric("Degradation (Year 1)", f"{year_1_deg:.2f}%")
     st.metric("Loss by Year 25", f"{year_25_loss:.2f}%")
     st.metric("Reliability Score", f"{reliability:.1f}/100")
 
-    st.subheader("⚠️ Test Risk Matrix")
-    risk_df = pd.DataFrame({
-        "Test": list(selected_tests.keys()),
-        "Impact": list(selected_tests.values()),
-        "Failure Risk (%)": [min(20 * v, 100) for v in selected_tests.values()]
-    })
-    st.dataframe(risk_df)
+    st.subheader("🚨 Failure Risk Analysis")
+    if selected_tests:
+        risk_df = pd.DataFrame({
+            "Test": list(selected_tests.keys()),
+            "Impact Score": list(selected_tests.values()),
+            "Failure Risk (%)": [min(impact * 20, 100) for impact in selected_tests.values()]
+        })
+        st.dataframe(risk_df)
+    else:
+        st.info("No tests selected — failure risk analysis not applicable.")
