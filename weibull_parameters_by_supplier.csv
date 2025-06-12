@@ -1,18 +1,18 @@
-Material,Beta,Base_Lifetime,Ea
-EVA,2.5,30,0.70
-POE,3.0,32,0.65
-EPE,2.7,29,0.68
-Mono PERC,2.8,28,0.60
-TOPCon,2.9,30,0.58
-HJT,3.1,34,0.55
-Glass,3.5,40,0.40
-PET,2.2,25,0.72
-TPT,2.6,27,0.70
-Aluminum,3.2,50,0.30
-Silicone,2.9,35,0.65
-J-Box (Standard),2.4,25,0.60
-J-Box (Enhanced),3.0,35,0.55
-Busbar (Cu-Ag),2.8,32,0.62
-Busbar (Cu-Ni-Ag),3.0,34,0.60
-Wire (Standard),2.6,25,0.66
-Wire (Tinned Copper),3.0,30,0.64
+Material,Supplier,Beta,Base_Lifetime,Ea,Test_Standard,Failure_Mode,Stress_Sensitivity,Region_Bias
+EVA,Hanwha,2.5,30,0.70,IEC 61215,Browning,1.0,1.0
+POE,DuPont,3.0,32,0.65,IEC 61215,None,0.8,1.1
+EPE,3M,2.7,29,0.68,PVEL Scorecard,Delamination,1.1,1.05
+Mono PERC,Longi,2.8,28,0.60,IEC 61215,LID,1.0,1.0
+TOPCon,Jinko,2.9,30,0.58,PVEL Scorecard,Cracking,1.1,0.95
+HJT,REC,3.1,34,0.55,IEC 61215,None,0.9,1.0
+Glass,NSG,3.5,40,0.40,IEC 61730,None,0.7,1.0
+PET,DuPont,2.2,25,0.72,IEC 61215,Yellowing,1.2,1.05
+TPT,3M,2.6,27,0.70,PVEL Scorecard,Delamination,1.1,1.0
+Aluminum,Norsk Hydro,3.2,50,0.30,None,None,0.6,1.0
+Silicone,Dow,2.9,35,0.65,RETC MQI,None,0.7,1.05
+J-Box (Standard),Foxconn,2.4,25,0.60,IEC 62790,Cracking,1.2,1.1
+J-Box (Enhanced),TE,3.0,35,0.55,RETC MQI,None,0.9,1.0
+Busbar (Cu-Ag),Luvata,2.8,32,0.62,IEC 61215,Solder fatigue,1.1,1.0
+Busbar (Cu-Ni-Ag),Luvata,3.0,34,0.60,PVEL Scorecard,None,0.9,1.05
+Wire (Standard),Generic,2.6,25,0.66,IEC 61215,Corrosion,1.2,1.1
+Wire (Tinned Copper),LS Cable,3.0,30,0.64,PVEL Scorecard,None,0.8,1.0
