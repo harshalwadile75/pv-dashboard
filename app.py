@@ -3,19 +3,19 @@ import pandas as pd
 import numpy as np
 import requests
 
-# --- Setup Page ---
-st.set_page_config("PVDevSim – City-Based PV Simulation", layout="wide")
-st.title("☀️ PVDevSim – Weather-Based Reliability Simulation")
+# --- Setup ---
+st.set_page_config("PVDevSim Enhanced", layout="wide")
+st.title("☀️ PVDevSim – Enhanced Reliability Simulation")
 
-# --- Load Required Data ---
+# --- Load data ---
 try:
     bom_df = pd.read_csv("full_material_bom_v3.csv")
-    risk_df = pd.read_csv("failure_risk_matrix_v2.csv")
+    risk_df = pd.read_csv("enhanced_failure_risk_matrix.csv")
 except Exception as e:
-    st.error(f"❌ Missing required CSVs: {e}")
+    st.error(f"❌ Missing CSV files: {e}")
     st.stop()
 
-# --- City Dropdown Selection ---
+# --- Location Selection ---
 st.sidebar.header("🌍 Select Project Location")
 city_coords = {
     "Phoenix, USA": (33.4484, -112.0740),
@@ -27,7 +27,6 @@ city_coords = {
 city = st.sidebar.selectbox("City", list(city_coords.keys()))
 lat, lon = city_coords[city]
 
-# --- Get TMY Weather Data ---
 @st.cache_data
 def get_pvgis_tmy(lat, lon):
     url = f"https://re.jrc.ec.europa.eu/api/tmy?lat={lat}&lon={lon}&outputformat=json"
@@ -35,29 +34,24 @@ def get_pvgis_tmy(lat, lon):
     if r.status_code != 200:
         return None
     try:
-        data = r.json()["outputs"]["tmy_hourly"]
-        df = pd.DataFrame(data)
-        if "time" not in df.columns:
-            df["time"] = pd.date_range("2023-01-01", periods=len(df), freq="H")
-        else:
-            df["time"] = pd.to_datetime(df["time"])
+        df = pd.DataFrame(r.json()["outputs"]["tmy_hourly"])
+        df["time"] = pd.date_range("2023-01-01", periods=len(df), freq="H")
         return df
-    except Exception as e:
-        st.error(f"❌ Error parsing PVGIS data: {e}")
+    except:
         return None
 
 weather_df = get_pvgis_tmy(lat, lon)
 if weather_df is None or weather_df.empty:
-    st.error("⚠️ Could not retrieve weather data. Try another city.")
+    st.error("⚠️ Weather data fetch failed.")
     st.stop()
 
-# --- Environmental Averages ---
+# --- Environmental stats ---
 avg_temp = weather_df["T2m"].mean()
 avg_irr = weather_df["G(h)"].mean()
-uv_index = avg_irr / 50  # UV proxy
+uv_index = avg_irr / 50
 
 # --- BOM Selection ---
-st.sidebar.header("🔧 Bill of Materials")
+st.sidebar.header("🔧 Module BOM")
 selections = {}
 
 for encap in ["Encapsulant - Front", "Encapsulant - Rear"]:
@@ -74,11 +68,11 @@ for comp in bom_df["Component"].unique():
     row = bom_df[(bom_df["Component"] == comp) & (bom_df["Type"] == sel)].iloc[0]
     selections[comp] = row
 
-# --- Test Protocol Selection ---
+# --- Test profile ---
 st.sidebar.header("🧪 Test Profile")
 test_profiles = {
     "None": {},
-    "IEC Basic": {"UV": 0.3, "DH1000": 1.0, "TC200": 0.5},
+    "IEC Basic": {"UV": 0.3, "DH2000": 1.0, "TC200": 0.5},
     "PVEL Scorecard": {"UV": 0.5, "DH2000": 1.4, "PID": 1.0, "HF": 0.6, "LID": 0.4},
     "RETC MQI": {"UV": 0.4, "HF": 0.8, "Dynamic Load": 0.6, "PID": 0.8}
 }
@@ -113,13 +107,13 @@ def get_failures(material, test_keys):
             rows.append(match)
     return pd.concat(rows) if rows else pd.DataFrame(columns=risk_df.columns)
 
-# --- Run Simulation ---
-if st.sidebar.button("▶️ Run Simulation"):
+# --- Run ---
+if st.sidebar.button("▶️ Simulate"):
 
-    st.subheader(f"📍 Environmental Conditions – {city}")
-    st.write(f"**Temperature:** {avg_temp:.1f} °C | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index (proxy):** {uv_index:.2f}")
+    st.subheader(f"📍 Environmental Data – {city}")
+    st.write(f"**Temp:** {avg_temp:.1f} °C | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index (proxy):** {uv_index:.2f}")
 
-    st.subheader("📋 Selected Bill of Materials")
+    st.subheader("📋 Selected Materials (BOM)")
     bom_table = pd.DataFrame([
         {"Component": k, "Material": v["Type"], "Supplier": v["Supplier"],
          "Region": v["Region"], "Certifications": v["Certifications"]}
@@ -127,26 +121,26 @@ if st.sidebar.button("▶️ Run Simulation"):
     ])
     st.dataframe(bom_table)
 
-    st.subheader("📉 Degradation Metrics")
+    st.subheader("📉 Degradation & Reliability")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Arrhenius Factor", f"{accel:.2f}")
-    col2.metric("Year-1 Degradation", f"{year1:.2f}%")
+    col2.metric("Year 1 Loss", f"{year1:.2f}%")
     col3.metric("25-Year Loss", f"{year25:.2f}%")
-    col4.metric("Reliability Score", f"{reliability:.1f}/100")
+    col4.metric("Reliability", f"{reliability:.1f}/100")
 
     st.subheader("🚨 Failure Risk Analysis")
     if selected_tests:
         risks = []
         for comp, row in selections.items():
-            material = row["Type"]
-            failure_df = get_failures(material, selected_tests.keys())
-            if not failure_df.empty:
-                failure_df["Component"] = comp
-                risks.append(failure_df)
+            mat = row["Type"]
+            fails = get_failures(mat, selected_tests.keys())
+            if not fails.empty:
+                fails["Component"] = comp
+                risks.append(fails)
         if risks:
-            final_risks = pd.concat(risks)
-            st.dataframe(final_risks[["Component", "Material", "Stress", "Failure Mode", "Risk Score"]])
+            df = pd.concat(risks)
+            st.dataframe(df[["Component", "Material", "Stress", "Failure Mode", "Risk Score", "Field Insight"]])
         else:
             st.success("✅ No major risks found.")
     else:
-        st.info("ℹ️ Select a test profile to analyze failure risk.")
+        st.info("ℹ️ Select a test profile to enable failure analysis.")
