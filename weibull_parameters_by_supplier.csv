@@ -1,7 +1,6 @@
-Material,Base_Lifetime,Beta,Ea
-EVA,12,1.5,0.7
-POE,20,1.2,0.6
-PET,10,1.8,0.75
-KPK,25,1.1,0.65
-EPE,15,1.3,0.72
-TPT,18,1.4,0.68
+Material,Beta,Base_Lifetime,Ea
+EVA,2.5,30,0.7
+POE,3.0,32,0.65
+Mono PERC,2.8,28,0.6
+HJT,3.1,34,0.55
+TOPCon,2.9,30,0.58
