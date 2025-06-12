@@ -1,0 +1,29 @@
+Component,Type,Supplier,Region,Certifications
+Encapsulant,EVA (Standard),Hangzhou First,China,IEC 61215
+Encapsulant,EVA (Fast Cure),Bridgestone,Japan,IEC 61215
+Encapsulant,POE,Mitsui,Japan,IEC 61215
+Encapsulant,EPE,Lucent,India,IEC 61215
+Backsheet,TPT,Dupont,USA,IEC 61730
+Backsheet,PET,Coveme,Italy,IEC 61730
+Backsheet,Co-extruded,Cybrid,China,IEC 61730
+Glass,Tempered,Xinyi,China,IEC 61730
+Glass,AR-coated,Flat Glass,China,IEC 61730
+Glass,Bifacial Glass,CSG,China,IEC 61730
+Cell,PERC,Trina,China,IEC 61215
+Cell,TOPCon,Jinko,China,IEC 61215
+Cell,HJT,REC,Norway,IEC 61215
+Cell,IBC,SunPower,USA,IEC 61215
+Frame,Aluminum,Gold Frame Co.,Korea,UL 1703
+Frame,Steel,Blue Steel Inc.,Germany,IEC 61215
+Frame,Frameless,None,None,None
+Silicone,Neutral Cure,Dow Corning,USA,UL 94
+Silicone,Thermal Conductive,Wacker,Germany,UL 94
+J-Box,IP67 with Diodes,TE Connectivity,USA,IEC 62790
+J-Box,IP68 Smart,Stäubli,Switzerland,IEC 62790
+Wire,Copper,Prysmian,Italy,UL 4703
+Wire,Silver-Plated,HELUKABEL,Germany,UL 4703
+Wire,Tinned Copper,Havells,India,UL 4703
+Busbar,3BB,CustomBus,China,None
+Busbar,5BB,BusPro,Korea,None
+Busbar,9BB,NeoWire,Taiwan,None
+Busbar,SmartWire,SmartTech,Switzerland,None
