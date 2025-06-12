@@ -2,138 +2,143 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config("PVDevSim – Dual Encapsulant Modeling", layout="wide")
-st.title("🔬 PVDevSim – Dual Encapsulant Simulation + Advanced Materials")
-
-# --- Load BOM ---
+###############################################################################
+# 1.  DATA LOAD
+###############################################################################
 try:
-    bom_df = pd.read_csv("full_material_bom_v2.csv")
-    st.sidebar.success("✅ Loaded Extended BOM")
-except FileNotFoundError:
-    st.error("❌ Missing 'full_material_bom_v2.csv'")
+    bom_df  = pd.read_csv("full_material_bom_v3.csv")
+    risk_df = pd.read_csv("failure_risk_matrix_v1.csv")
+except FileNotFoundError as e:
+    st.error(f"Missing file: {e}")
     st.stop()
 
-components = bom_df["Component"].unique()
+###############################################################################
+# 2.  SIDEBAR – MATERIAL PICKERS
+###############################################################################
+st.set_page_config("PVDevSim – Failure-Risk Edition", layout="wide")
+st.title("🔬  PVDevSim — Module Simulator with Failure-Risk Analysis")
+
 selections = {}
 
-# --- Encapsulant Front & Rear Section (Clear Layout) ---
-st.sidebar.header("🧪 Encapsulant Selection")
-for encap_side in ["Encapsulant - Front", "Encapsulant - Rear"]:
-    options = bom_df[bom_df["Component"] == encap_side]["Type"].unique()
-    selection = st.sidebar.selectbox(f"{encap_side}", options, key=encap_side)
-    selected_row = bom_df[(bom_df["Component"] == encap_side) & (bom_df["Type"] == selection)].iloc[0]
-    selections[encap_side] = selected_row
+st.sidebar.header("🧪  Encapsulant Selection")
+for side in ["Encapsulant - Front", "Encapsulant - Rear"]:
+    opts = bom_df[bom_df["Component"] == side]["Type"].unique()
+    sel  = st.sidebar.selectbox(side, opts, key=side)
+    selections[side] = bom_df[(bom_df["Component"] == side) & (bom_df["Type"] == sel)].iloc[0]
 
-# --- Other BOM Components ---
-st.sidebar.header("🧱 Select Other BOM Components")
-for component in components:
-    if "Encapsulant" not in component:
-        options = bom_df[bom_df["Component"] == component]["Type"].unique()
-        selection = st.sidebar.selectbox(f"{component}", options, key=component)
-        selected_row = bom_df[(bom_df["Component"] == component) & (bom_df["Type"] == selection)].iloc[0]
-        selections[component] = selected_row
+st.sidebar.header("🧱  Other Components")
+for comp in bom_df["Component"].unique():
+    if "Encapsulant" in comp: 
+        continue
+    opts = bom_df[bom_df["Component"] == comp]["Type"].unique()
+    sel  = st.sidebar.selectbox(comp, opts, key=comp)
+    selections[comp] = bom_df[(bom_df["Component"] == comp) & (bom_df["Type"] == sel)].iloc[0]
 
-# --- Degradation Parameters ---
-st.sidebar.header("🌡️ Degradation Settings")
-avg_temp = st.sidebar.slider("Operating Temp (°C)", 25, 85, 45)
-damp_heat = st.sidebar.slider("Damp Heat (Hours)", 0, 5000, 2000)
-uv_dose = st.sidebar.slider("UV Dosage (kWh/m²)", 0, 1000, 300)
+###############################################################################
+# 3.  STRESS & TEST INPUTS
+###############################################################################
+st.sidebar.header("🌡️  Degradation Params")
+avg_temp   = st.sidebar.slider("Operating Temp (°C)", 25, 85, 45)
+damp_heat  = st.sidebar.slider("Damp Heat (h)",        0, 5000, 2000)
+uv_dose    = st.sidebar.slider("UV Dose (kWh/m²)",     0, 1000, 300)
 
-# --- Select Test Protocol ---
-st.sidebar.header("📋 Test Protocol")
-profile = st.sidebar.selectbox("Standard", ["None", "IEC Basic", "PVEL Scorecard", "RETC MQI"])
+st.sidebar.header("📋  Test Protocol")
+profile = st.sidebar.selectbox("Standard", ["None","IEC Basic","PVEL Scorecard","RETC MQI"])
 test_profiles = {
     "None": {},
-    "IEC Basic": {"TC200": 0.5, "DH1000": 1.0, "UV": 0.3},
-    "PVEL Scorecard": {"TC600": 0.7, "DH2000": 1.4, "PID": 1.0, "UV": 0.5, "LID": 0.4, "HF": 0.6},
-    "RETC MQI": {"TC200 + DH2000 + HF": 2.5, "Dynamic Load": 0.6, "PID": 0.8, "UV": 0.4}
+    "IEC Basic":      {"TC200":0.5, "DH1000":1.0, "UV":0.3},
+    "PVEL Scorecard": {"TC600":0.7, "DH2000":1.4, "PID":1.0, "UV":0.5, "LID":0.4, "HF":0.6},
+    "RETC MQI":       {"TC200+DH2000+HF":2.5, "Dynamic Load":0.6, "PID":0.8, "UV":0.4}
 }
-selected_tests = test_profiles.get(profile, {})
-total_test_impact = sum(selected_tests.values())
+selected_tests   = test_profiles.get(profile, {})
+total_test_score = sum(selected_tests.values())
 
-# --- Material Factors ---
-encap_degradation = {
-    "EVA": {"UV": 1.2, "PID": 1.3},
-    "POE": {"UV": 0.7, "PID": 0.5},
-    "EPE": {"UV": 1.0, "PID": 1.0}
-}
-backsheet_degradation = {
-    "TPT": {"DH": 1.0},
-    "PET": {"DH": 1.3},
-    "Co-extruded": {"DH": 0.9}
-}
+###############################################################################
+# 4.  MATERIAL-BASED MULTIPLIERS (example)
+###############################################################################
+encap_mult = {"EVA":{"UV":1.2,"PID":1.3}, "POE":{"UV":0.7,"PID":0.5}, "EPE":{"UV":1.0,"PID":1.0}}
+back_mult  = {"TPT":1.0,"PET":1.3,"Co-extruded":0.9}
 
-def get_encap_factor(material, stress):
-    for key in encap_degradation:
-        if key in material:
-            return encap_degradation[key].get(stress, 1.0)
+def encap_factor(mat, mode): 
+    for k,v in encap_mult.items():
+        if k in mat: return v.get(mode,1.0)
+    return 1.0
+def backsheet_factor(mat): 
+    for k in back_mult: 
+        if k in mat: return back_mult[k]
     return 1.0
 
-def get_backsheet_factor(material):
-    for key in backsheet_degradation:
-        if key in material:
-            return backsheet_degradation[key].get("DH", 1.0)
-    return 1.0
-
-# --- Arrhenius Model ---
+###############################################################################
+# 5.  ARRHENIUS + DEGRADATION CALC
+###############################################################################
 def arrhenius(temp, Ea=0.7, Tref=298):
-    k = 8.617e-5
-    T = temp + 273.15
-    return np.exp((Ea / k) * (1 / Tref - 1 / T))
+    k=8.617e-5;  T=temp+273.15
+    return np.exp((Ea/k)*(1/Tref - 1/T))
 
-accel_factor = arrhenius(avg_temp)
+accel  = arrhenius(avg_temp)
+front  = selections["Encapsulant - Front"]["Type"]
+rear   = selections["Encapsulant - Rear"]["Type"]
+backsh = selections["Backsheet"]["Type"]
+
+uv_fac  = (encap_factor(front,"UV")+encap_factor(rear,"UV"))/2
+pid_fac = (encap_factor(front,"PID")+encap_factor(rear,"PID"))/2
+dh_fac  = backsheet_factor(backsh)
+
 base_deg = 0.5
+deg_rate = base_deg*accel + damp_heat*0.0001*dh_fac + total_test_score*0.05*np.mean([uv_fac,pid_fac])
 
-# --- Get Material-Based Multipliers ---
-front_encap = selections["Encapsulant - Front"]["Type"]
-rear_encap = selections["Encapsulant - Rear"]["Type"]
-backsheet = selections["Backsheet"]["Type"]
+###############################################################################
+# 6.  FAILURE-RISK LOOK-UP
+###############################################################################
+def lookup_failures(material, stresses):
+    rows = []
+    for stress in stresses:
+        matches = risk_df[(risk_df["Material"].str.contains(material,case=False)) &
+                          (risk_df["Stress"].str.contains(stress.split()[0],case=False))]
+        rows.append(matches)
+    if rows: return pd.concat(rows)
+    return pd.DataFrame(columns=risk_df.columns)
 
-uv_factor = (get_encap_factor(front_encap, "UV") + get_encap_factor(rear_encap, "UV")) / 2
-pid_factor = (get_encap_factor(front_encap, "PID") + get_encap_factor(rear_encap, "PID")) / 2
-dh_factor = get_backsheet_factor(backsheet)
+###############################################################################
+# 7.  RUN SIMULATION BUTTON
+###############################################################################
+if st.sidebar.button("▶️ Run Simulation"):
 
-# --- Calculate Final Degradation Rate ---
-deg_rate = (
-    base_deg * accel_factor +
-    damp_heat * 0.0001 * dh_factor +
-    total_test_impact * 0.05 * np.mean([uv_factor, pid_factor])
-)
+    # 7-A BOM Table
+    st.subheader("📋 Bill of Materials")
+    st.table(pd.DataFrame([{
+        "Component":k,"Material":v["Type"],"Supplier":v["Supplier"],
+        "Region":v["Region"],"Cert":v["Certifications"]} 
+        for k,v in selections.items()
+    ]))
 
-# --- Run Simulation ---
-simulate = st.sidebar.button("▶️ Run Simulation")
+    # 7-B Degradation Metrics
+    year1 = deg_rate
+    y25   = year1*25*0.95
+    rel   = max(0,100-y25)
 
-if simulate:
-    st.subheader("📋 Bill of Materials (Selected)")
-    bom_table = pd.DataFrame([
-        {
-            "Component": comp,
-            "Material": row["Type"],
-            "Supplier": row["Supplier"],
-            "Region": row["Region"],
-            "Certifications": row["Certifications"]
-        }
-        for comp, row in selections.items()
-    ])
-    st.table(bom_table)
+    st.subheader("📉 Degradation & Reliability")
+    col1,col2,col3,col4 = st.columns(4)
+    col1.metric("Arrhenius F",f"{accel:.2f}")
+    col2.metric("Year-1 Deg",f"{year1:.2f}%")
+    col3.metric("Loss @ 25 yr",f"{y25:.2f}%")
+    col4.metric("Reliability",f"{rel:.1f}/100")
 
-    st.subheader("📉 Degradation & Reliability Metrics")
-    year_1_deg = deg_rate
-    year_25_loss = year_1_deg * 25 * 0.95
-    reliability = max(0, 100 - year_25_loss)
-
-    st.metric("Arrhenius Factor", f"{accel_factor:.2f}")
-    st.metric("Degradation (Year 1)", f"{year_1_deg:.2f}%")
-    st.metric("Loss by Year 25", f"{year_25_loss:.2f}%")
-    st.metric("Reliability Score", f"{reliability:.1f}/100")
-
-    st.subheader("🚨 Failure Risk Analysis")
+    # 7-C Failure-Risk Table
+    st.subheader("🚨 Failure-Risk Analysis")
     if selected_tests:
-        risk_df = pd.DataFrame({
-            "Test": list(selected_tests.keys()),
-            "Impact Score": list(selected_tests.values()),
-            "Failure Risk (%)": [min(impact * 20, 100) for impact in selected_tests.values()]
-        })
-        st.dataframe(risk_df)
+        all_stresses = list(selected_tests.keys())
+        risk_tables  = []
+        for comp,row in selections.items():
+            mat = row["Type"]
+            tbl = lookup_failures(mat, all_stresses)
+            if not tbl.empty:
+                tbl.insert(0,"Component",comp)
+                risk_tables.append(tbl)
+        if risk_tables:
+            risk_final = pd.concat(risk_tables,ignore_index=True)
+            st.dataframe(risk_final)
+        else:
+            st.info("No risk data matched for selected materials/tests.")
     else:
-        st.info("No tests selected — failure risk analysis not applicable.")
+        st.info("No test profile selected → risk analysis skipped.")
