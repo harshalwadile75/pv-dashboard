@@ -144,3 +144,46 @@ if st.sidebar.button("▶️ Simulate"):
             st.success("✅ No major risks found.")
     else:
         st.info("ℹ️ Select a test profile to enable failure analysis.")
+
+    # --- Weibull + Arrhenius Lifetime Modeling ---
+    st.subheader("📊 Lifetime Projection (Weibull + Arrhenius)")
+
+    # Weibull parameters (use encapsulant-front as proxy material)
+    try:
+        selected_encap = selections["Encapsulant - Front"]["Type"]
+        weibull_db = {
+            "EVA": {"Base_Lifetime": 12, "Beta": 1.5, "Ea": 0.7},
+            "POE": {"Base_Lifetime": 20, "Beta": 1.2, "Ea": 0.6},
+            "PET": {"Base_Lifetime": 10, "Beta": 1.8, "Ea": 0.75},
+            "KPK": {"Base_Lifetime": 25, "Beta": 1.1, "Ea": 0.65},
+            "EPE": {"Base_Lifetime": 15, "Beta": 1.3, "Ea": 0.72},
+            "TPT": {"Base_Lifetime": 18, "Beta": 1.4, "Ea": 0.68}
+        }
+
+        if selected_encap in weibull_db:
+            w = weibull_db[selected_encap]
+            T_ref = 298  # 25°C in K
+            T = avg_temp + 273.15
+            k = 8.617e-5
+
+            # Arrhenius acceleration
+            accel_factor = np.exp((w["Ea"] / k) * (1 / T_ref - 1 / T))
+            eta_adj = w["Base_Lifetime"] / accel_factor
+            beta = w["Beta"]
+
+            years = np.arange(1, 26)
+            survival = np.exp(-(years / eta_adj) ** beta)
+            lifetime_df = pd.DataFrame({"Year": years, "Reliability": survival})
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Weibull β", f"{beta}")
+            col2.metric("Adj. Lifetime η", f"{eta_adj:.2f} yrs")
+            col3.metric("Acceleration", f"{accel_factor:.2f}x")
+
+            st.line_chart(lifetime_df.set_index("Year"))
+
+        else:
+            st.warning(f"No Weibull model available for '{selected_encap}'")
+    except Exception as e:
+        st.warning(f"Error generating Weibull chart: {e}")
+
