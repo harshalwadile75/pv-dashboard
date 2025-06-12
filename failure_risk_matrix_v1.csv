@@ -1,0 +1,22 @@
+Material,Stress,Failure Mode,Risk Score
+EVA,UV,Yellowing,0.8
+EVA,PID,Leakage Path,0.7
+POE,UV,Moderate Yellowing,0.4
+POE,PID,High Resistance,0.2
+EPE,UV,Stable,0.3
+EPE,PID,Medium Resistance,0.5
+TPT,DH,Delamination,0.5
+PET,DH,Cracking,0.8
+Co-extruded,DH,Stable,0.3
+Tempered,TC,Microcracks,0.6
+Anti-reflective,UV,Coating Degrade,0.7
+Borosilicate,TC,Highly Stable,0.2
+Mono PERC,LID,Initial Light Drop,0.6
+TOPCon,LID,Low Sensitivity,0.3
+HJT,LID,Very Stable,0.2
+RTV Neutral,HF,Adhesion Loss,0.4
+Acrylic,HF,Edge Cracking,0.6
+Neutral Cure,HF,Moderate Risk,0.5
+IP67 with Diodes,HF,Sealing Weakness,0.5
+IP68 Split,HF,Stable,0.3
+IP68 Rated,HF,Stable,0.2
