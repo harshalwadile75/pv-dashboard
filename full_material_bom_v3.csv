@@ -1,36 +1,18 @@
-Component,Type,Supplier,Region,Certifications
-Encapsulant - Front,EVA,Dupont,USA,IEC 61215
-Encapsulant - Front,POE,Hangzhou First,China,PVEL Qualified
-Encapsulant - Front,EPE,Cybrid,China,UL 1703
-Encapsulant - Front,POE,Hanwha,Korea,PVEL Qualified
-Encapsulant - Rear,EVA,3M,USA,IEC 61215
-Encapsulant - Rear,POE,SKC,Korea,PVEL Recommended
-Encapsulant - Rear,EPE,TPI,Taiwan,UL 61730
-Encapsulant - Rear,EVA,Hanwha,Korea,UL Certified
-Backsheet,TPT,Isovolta,Austria,PVEL
-Backsheet,PET,Coveme,Italy,UL 61730
-Backsheet,Co-extruded,Cybrid,China,IEC 61730
-Backsheet,TPT,Hanwha,Korea,IEC 61730
-Glass,Tempered,Xinyi,China,ISO 9001
-Glass,Anti-reflective,AGC,Japan,ISO 14001
-Glass,Borosilicate,Borosil,India,PVEL Qualified
-Glass,Anti-reflective,Saint-Gobain,France,ISO 14001
-Cell,Mono PERC,LONGi,China,PVEL
-Cell,TOPCon,Jinko,China,RETC
-Cell,HJT,Meyer Burger,Germany,RETC MQI
-Cell,TOPCon,Hanwha Qcells,Korea,RETC Qualified
-Frame,Anodized Aluminum,Fenglu,China,ISO 9001
-Frame,Black Coated,HOSHINE,Vietnam,UL 1703
-Frame,Anodized Aluminum,Hydro,Norway,ISO 9001
-Silicone,RTV Neutral,Shin-Etsu,Japan,IEC 61215
-Silicone,Acrylic,Dow Corning,USA,UL Certified
-Silicone,Neutral Cure,Momentive,USA,IEC 61215
-Junction Box,IP67 with Diodes,STAUBLI,Germany,TUV Certified
-Junction Box,IP68 Split,QC Solar,China,PVEL Recommended
-Junction Box,IP68 Rated,Amphenol,USA,TUV Certified
-Wire,Tinned Copper,Lapp,Germany,UL 4703
-Wire,Silver-plated,HELUKABEL,Germany,IEC 62930
-Wire,Silver-coated Copper,General Cable,USA,UL 4703
-Busbar,Multi-Busbar (MBB),Jiangsu,China,PVEL
-Busbar,SMBB,Targray,Canada,IEC Compliant
-Busbar,SMBB,Luvata,Finland,PVEL
+Component,Type,Supplier,Region,Certifications,Cost_per_m2,Weight (g/m2),Moisture Ingress Rating,Crosslinking (%)
+Encapsulant - Front,EVA,Hanwha,Asia,"UL, IEC",1.1,450,Medium,80
+Encapsulant - Front,POE,DuPont,USA,"UL, IEC",1.3,470,High,85
+Encapsulant - Front,EPE,3M,USA,"UL, IEC",1.2,460,Medium,82
+Encapsulant - Rear,EVA,Hanwha,Asia,"UL, IEC",1.1,450,Medium,80
+Encapsulant - Rear,POE,DuPont,USA,"UL, IEC",1.3,470,High,85
+Encapsulant - Rear,EPE,3M,USA,"UL, IEC",1.2,460,Medium,82
+Cell,Mono PERC,Longi,China,IEC,5.0,1800,Low,0
+Cell,TOPCon,Jinko,China,IEC,5.2,1850,Low,0
+Cell,HJT,REC,Korea,IEC,5.5,1900,Low,0
+Backsheet,PET,3M,USA,UL,0.9,250,Low,0
+Backsheet,TPT,DuPont,USA,"UL, IEC",1.0,260,Medium,0
+Junction Box,J-Box (Standard),Foxconn,Taiwan,TUV,0.5,120,Medium,0
+Junction Box,J-Box (Enhanced),TE,USA,"UL, IEC",0.7,140,High,0
+Busbar,Busbar (Cu-Ag),Luvata,Finland,IEC,0.4,80,Low,0
+Busbar,Busbar (Cu-Ni-Ag),Luvata,Finland,IEC,0.45,85,Low,0
+Wire,Wire (Standard),Generic,Global,IEC,0.2,50,Medium,0
+Wire,Wire (Tinned Copper),LS Cable,Korea,IEC,0.3,55,Low,0
