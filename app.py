@@ -48,7 +48,7 @@ avg_rh = weather_df["RH"].mean()
 avg_irr = weather_df["G(h)"].mean()
 uv_index = avg_irr / 50
 
-# Test Profiles
+# Stress Profiles
 test_profiles = {
     "None": {},
     "IEC Basic": {"UV": 0.3, "DH2000": 1.0, "TC200": 0.5},
@@ -86,26 +86,28 @@ def simulate_bom(bom, label):
     cell = bom["Cell"]["Type"]
     mat_row = weibull_df[weibull_df["Material"] == front_encap]
     cell_row = weibull_df[weibull_df["Material"] == cell]
+
+    years = np.arange(1, 26)
+
     if mat_row.empty or cell_row.empty:
-        st.warning(f"⚠️ Weibull missing for {label}")
-        return None
+        st.warning(f"⚠️ Weibull parameters not found for {label} – {front_encap} or {cell}")
+        return pd.DataFrame({"Year": years, f"{label} Reliability": [np.nan]*25})
 
     mat = mat_row.iloc[0]
     cell = cell_row.iloc[0]
-    years = np.arange(1, 26)
 
     eta_m = mat["Base_Lifetime"] / arrhenius(avg_temp, mat["Ea"])
     eta_c = cell["Base_Lifetime"] / arrhenius(avg_temp, cell["Ea"])
+
     surv_m = weibull_survival(years, eta_m, mat["Beta"])
     surv_c = weibull_survival(years, eta_c, cell["Beta"])
 
     rh_factor = 1 + 0.01 * (avg_rh - 50)
     uv_factor = 1 + 0.02 * (uv_index - 5)
     stress_factor = 1 + 0.05 * sum(selected_tests.values())
-    combined = (surv_m + surv_c) / 2 / (rh_factor * uv_factor * stress_factor)
 
-    df = pd.DataFrame({"Year": years, f"{label} Reliability": combined * 100})
-    return df
+    combined = (surv_m + surv_c) / 2 / (rh_factor * uv_factor * stress_factor)
+    return pd.DataFrame({"Year": years, f"{label} Reliability": combined * 100})
 
 # Risk Matrix
 def get_failures(material, test_keys):
@@ -127,7 +129,7 @@ if st.sidebar.button("▶️ Simulate"):
     df1 = simulate_bom(bom1, "BOM 1")
     df2 = simulate_bom(bom2, "BOM 2")
 
-    if df1 is not None and df2 is not None:
+    if not df1.empty and not df2.empty:
         result = pd.merge(df1, df2, on="Year")
         st.subheader("📉 Reliability Comparison (25 years)")
         st.line_chart(result.set_index("Year"))
