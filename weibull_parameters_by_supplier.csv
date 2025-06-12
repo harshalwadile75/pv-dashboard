@@ -1,6 +1,18 @@
 Material,Beta,Base_Lifetime,Ea
-EVA,2.5,30,0.7
+EVA,2.5,30,0.70
 POE,3.0,32,0.65
-Mono PERC,2.8,28,0.6
-HJT,3.1,34,0.55
+EPE,2.7,29,0.68
+Mono PERC,2.8,28,0.60
 TOPCon,2.9,30,0.58
+HJT,3.1,34,0.55
+Glass,3.5,40,0.40
+PET,2.2,25,0.72
+TPT,2.6,27,0.70
+Aluminum,3.2,50,0.30
+Silicone,2.9,35,0.65
+J-Box (Standard),2.4,25,0.60
+J-Box (Enhanced),3.0,35,0.55
+Busbar (Cu-Ag),2.8,32,0.62
+Busbar (Cu-Ni-Ag),3.0,34,0.60
+Wire (Standard),2.6,25,0.66
+Wire (Tinned Copper),3.0,30,0.64
