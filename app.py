@@ -4,8 +4,8 @@ import numpy as np
 import requests
 
 # --- Page Setup ---
-st.set_page_config("PVDevSim v5 — Real-Weather Reliability", layout="wide")
-st.title("🔆 PVDevSim v5 — Weather-Based PV Module Simulation")
+st.set_page_config("PVDevSim – Map-Driven Simulator", layout="wide")
+st.title("📍 PVDevSim – Interactive Map-Based PV Simulation")
 
 # --- Load Required CSVs ---
 try:
@@ -15,17 +15,18 @@ except Exception as e:
     st.error(f"❌ Error loading CSVs: {e}")
     st.stop()
 
-# --- Step 1: Global City Selection ---
-st.sidebar.header("🌍 Select Project Location")
-city_coords = {
-    "Phoenix, USA": (33.4484, -112.0740),
-    "Munich, Germany": (48.1351, 11.5820),
-    "Chennai, India": (13.0827, 80.2707),
-    "Dubai, UAE": (25.2048, 55.2708),
-    "São Paulo, Brazil": (-23.5505, -46.6333)
-}
-city = st.sidebar.selectbox("City", list(city_coords.keys()))
-lat, lon = city_coords[city]
+# --- Step 1: Location Selection via Map ---
+st.sidebar.header("🌎 Select Location")
+default_lat, default_lon = 25.2048, 55.2708  # Default to Dubai
+location = st.sidebar.map(center={"lat": default_lat, "lon": default_lon}, zoom=2)
+
+if location is None or not location["selected_rows"]:
+    lat, lon = default_lat, default_lon
+    st.info("📍 Using default location: Dubai")
+else:
+    lat = location["selected_rows"][0]["lat"]
+    lon = location["selected_rows"][0]["lon"]
+    st.success(f"📍 Selected location: Lat {lat:.2f}, Lon {lon:.2f}")
 
 # --- Step 2: Fetch TMY from PVGIS ---
 @st.cache_data
@@ -37,10 +38,10 @@ def get_pvgis_tmy(lat, lon):
     try:
         data = r.json()["outputs"]["tmy_hourly"]
         df = pd.DataFrame(data)
-        if "time" in df.columns:
-            df["time"] = pd.to_datetime(df["time"])
-        else:
+        if "time" not in df.columns:
             df["time"] = pd.date_range("2023-01-01", periods=len(df), freq="H")
+        else:
+            df["time"] = pd.to_datetime(df["time"])
         return df
     except Exception as e:
         st.error(f"❌ PVGIS parsing failed: {e}")
@@ -48,13 +49,13 @@ def get_pvgis_tmy(lat, lon):
 
 weather_df = get_pvgis_tmy(lat, lon)
 if weather_df is None or weather_df.empty:
-    st.error("⚠️ Could not retrieve TMY weather data. Try a different city.")
+    st.error("⚠️ Could not retrieve TMY weather data. Try a different location.")
     st.stop()
 
 # --- Step 3: Extract Environment Stressors ---
 avg_temp = weather_df["T2m"].mean()
 avg_irr = weather_df["G(h)"].mean()
-uv_index = avg_irr / 50  # proxy UV stress
+uv_index = avg_irr / 50  # UV proxy
 
 # --- Step 4: Sidebar - BOM Selection ---
 st.sidebar.header("🔧 Module BOM")
@@ -118,8 +119,8 @@ def get_failures(material, test_keys):
 # --- Step 8: Run Simulation ---
 if st.sidebar.button("▶️ Simulate"):
 
-    st.subheader(f"📍 Environmental Conditions — {city}")
-    st.write(f"**Avg Temp:** {avg_temp:.1f} °C  |  **Irradiance:** {avg_irr:.1f} W/m²  |  **UV Proxy Index:** {uv_index:.2f}")
+    st.subheader(f"📍 Environmental Conditions at Selected Location")
+    st.write(f"**Avg Temp:** {avg_temp:.1f} °C | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index Proxy:** {uv_index:.2f}")
 
     st.subheader("📋 Bill of Materials")
     bom_table = pd.DataFrame([
@@ -133,7 +134,7 @@ if st.sidebar.button("▶️ Simulate"):
     col1.metric("Arrhenius Factor", f"{accel_factor:.2f}")
     col2.metric("Year 1 Degradation", f"{year1:.2f}%")
     col3.metric("25-Year Loss", f"{year25:.2f}%")
-    col4.metric("Reliability Index", f"{reliability:.1f}/100")
+    col4.metric("Reliability Score", f"{reliability:.1f}/100")
 
     st.subheader("🚨 Failure Risk Analysis")
     if selected_tests:
