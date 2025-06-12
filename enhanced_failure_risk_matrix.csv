@@ -1,18 +1,6 @@
-Material,Stress,Failure Mode,Risk Score,Field Insight
-EVA,UV,"Yellowing, Optical loss",0.65,Common in field after prolonged UV exposure
-EVA,DH2000,Hydrolytic degradation,0.55,Moderate hydrolysis under damp heat
-POE,PID,Ion migration,0.25,High resistance to PID
-POE,UV,Minor yellowing,0.2,Much better UV stability than EVA
-EPE,HF,Delamination risk,0.45,EPE is more vulnerable to thermal fatigue
-PET,DH2000,"Cracking, embrittlement",0.75,Common failure in high humidity areas
-PPE,UV,Color change,0.4,Rare but possible under high UV
-KPK,TC200,Mechanical fatigue,0.35,Good resilience under thermal cycling
-AR Glass,HF,Coating degradation,0.5,Coating wears out under high heat & humidity
-Textured Glass,TC200,Microcracks,0.4,Surface roughness may accumulate stress
-Standard J-Box,TC200,Solder joint failure,0.6,Common due to thermal cycling
-Bypass Diode,HF,Diode leakage or burnout,0.55,High field reports from desert zones
-PERC,LID,Initial light-induced degradation,0.45,"Degrades 1–2% early, then stabilizes"
-TOPCon,PID,Reduced shunt resistance,0.35,More stable than PERC but not immune
-HJT,DH2000,Encapsulant delam risk,0.3,Lower but needs proper lamination
-Silicone Sealant,HF,Outgassing or bond loss,0.4,Possible in high temp zones
-Aluminum Frame,Dynamic Load,Corner gap/loosening,0.3,Low risk if properly torqued
+Component,Material,Stress,Failure Mode,Risk Score,Field Insight,Pass Rate (%),Test Standard,Test Severity,Root Cause
+Encapsulant - Front,EVA,UV,Browning,0.7,Common in high UV regions,85,IEC 61215,3,UV instability
+Encapsulant - Rear,POE,DH2000,Delamination,0.3,High stability in DH,95,PVEL,4,Hydrolytic resistance
+Cell,Mono PERC,LID,Light-Induced Degradation,0.6,Common in early life,88,IEC 61215,3,Boron-oxygen defects
+Backsheet,PET,UV,Yellowing,0.8,Observed in dry sunny climates,78,RETC,5,Additive instability
+Junction Box,J-Box (Standard),HF,Cracking,0.5,Seen in humid zones,82,IEC 62790,4,Material fatigue
