@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config("PVDevSim – Module Simulator", layout="wide")
-st.title("🔬 PVDevSim – Enhanced Module Config + PVEL/RETC Analysis")
+st.set_page_config("PVDevSim – Material-Specific Modeling", layout="wide")
+st.title("🔬 PVDevSim – Realistic Module Simulation with Material-Level Insights")
 
 # --- Load BOM ---
 try:
@@ -34,7 +34,6 @@ uv_dosage = st.sidebar.slider("UV Dosage (kWh/m²)", 0, 1000, 300)
 st.sidebar.header("🧪 Select Test Protocol")
 profile = st.sidebar.selectbox("Standard", ["None", "IEC Basic", "PVEL Scorecard", "RETC MQI"])
 
-# --- Define Test Profiles ---
 test_profiles = {
     "None": {},
     "IEC Basic": {"TC200": 0.5, "DH1000": 1.0, "UV": 0.3},
@@ -44,7 +43,33 @@ test_profiles = {
 selected_tests = test_profiles.get(profile, {})
 total_test_impact = sum(selected_tests.values())
 
-# --- Arrhenius Degradation ---
+# --- Real Material-Specific Adjustments ---
+encap_factors = {
+    "EVA": {"UV": 1.2, "PID": 1.3},
+    "POE": {"UV": 0.7, "PID": 0.5},
+    "EPE": {"UV": 1.0, "PID": 1.0}
+}
+
+backsheet_factors = {
+    "TPT": {"DH": 1.0},
+    "PET": {"DH": 1.3},
+    "Co-extruded": {"DH": 0.9}
+}
+
+def get_material_factor(component_type, stress):
+    if component_type == "Encapsulant":
+        mat = selections["Encapsulant"]["Type"]
+        for key in encap_factors:
+            if key in mat:
+                return encap_factors[key].get(stress, 1.0)
+    elif component_type == "Backsheet":
+        mat = selections["Backsheet"]["Type"]
+        for key in backsheet_factors:
+            if key in mat:
+                return backsheet_factors[key].get(stress, 1.0)
+    return 1.0
+
+# --- Arrhenius Model ---
 def arrhenius(temp, Ea=0.7, Tref=298):
     k = 8.617e-5
     T = temp + 273.15
@@ -52,7 +77,18 @@ def arrhenius(temp, Ea=0.7, Tref=298):
 
 accel_factor = arrhenius(avg_temp)
 base_deg_rate = 0.5
-deg_rate = base_deg_rate * accel_factor + (damp_heat_hours * 0.0001) + (total_test_impact * 0.05)
+
+# Apply material modifiers
+uv_factor = get_material_factor("Encapsulant", "UV")
+pid_factor = get_material_factor("Encapsulant", "PID")
+dh_factor = get_material_factor("Backsheet", "DH")
+
+# Calculate enhanced degradation
+deg_rate = (
+    base_deg_rate * accel_factor +
+    (damp_heat_hours * 0.0001 * dh_factor) +
+    (total_test_impact * 0.05 * np.mean([uv_factor, pid_factor]))
+)
 
 simulate = st.sidebar.button("Run Simulation")
 
@@ -76,7 +112,7 @@ if simulate:
     reliability_score = max(0, 100 - year_25_loss)
 
     st.metric("Arrhenius Factor", f"{accel_factor:.2f}")
-    st.metric("Degradation Rate (Year 1)", f"{year_1_deg:.2f}%")
+    st.metric("Year 1 Degradation", f"{year_1_deg:.2f}%")
     st.metric("Total Loss by Year 25", f"{year_25_loss:.2f}%")
     st.metric("Reliability Score", f"{reliability_score:.1f}/100")
 
