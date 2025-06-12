@@ -1,17 +1,8 @@
 Component,Material,Stress,Failure Mode,Risk Score,Field Insight,Pass Rate (%),Test Standard,Test Severity,Root Cause
 Encapsulant - Front,EVA,UV,Browning,0.7,Common in high UV regions,85,IEC 61215,3,UV instability
-Encapsulant - Front,EVA,PID,Delamination,0.6,Observed in PID chamber failures,80,IEC 62804,4,Chemical breakdown under bias
 Encapsulant - Rear,POE,DH2000,Delamination,0.3,High stability in DH,95,PVEL,4,Hydrolytic resistance
-Encapsulant - Rear,POE,UV,None,0.2,Stable in UV-rich environments,96,IEC 61215,2,—
-Encapsulant - Rear,EPE,DH2000,Bubbling,0.5,Seen in humid + hot locations,85,PVEL,4,Moisture ingress
 Cell,Mono PERC,LID,Light-Induced Degradation,0.6,Common in early life,88,IEC 61215,3,Boron-oxygen defects
-Cell,TOPCon,PID,Shunting,0.5,Resistant but vulnerable under HF,91,PVEL,4,Surface instability
-Cell,HJT,UV,None,0.2,Excellent stability,97,RETC,2,—
 Backsheet,PET,UV,Yellowing,0.8,Observed in dry sunny climates,78,RETC,5,Additive instability
-Backsheet,TPT,DH2000,Cracking,0.6,Found in DH + TC exposure,84,IEC 61215,4,Material fatigue
 Junction Box,J-Box (Standard),HF,Cracking,0.5,Seen in humid zones,82,IEC 62790,4,Material fatigue
-Junction Box,J-Box (Enhanced),PID,None,0.2,Protected with potting,94,PVEL,2,—
-Busbar,Busbar (Cu-Ag),TC200,Solder fatigue,0.6,Occurs after thermal cycling,87,IEC 61215,3,CTE mismatch
-Busbar,Busbar (Cu-Ni-Ag),UV,None,0.2,Stable in outdoor use,90,RETC,2,—
-Wire,Wire (Standard),HF,Corrosion,0.7,Common in salty, humid areas,79,IEC 61730,4,Coating erosion
-Wire,Wire (Tinned Copper),HF,None,0.2,Stable in marine climates,92,PVEL,2,—
+Cell,TOPCon,PID,Potential Induced Degradation,0.7,Susceptible under high voltage stress,80,PVEL,4,Field bias instability
+Encapsulant - Front,EPE,DH2000,Delamination,0.4,Moderate resistance under humidity,89,IEC 61215,3,Polymer breakdown
