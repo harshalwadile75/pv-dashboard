@@ -1,4 +1,6 @@
 streamlit
-pvlib
 pandas
-requests
+numpy
+matplotlib
+openpyxl
+plotly
