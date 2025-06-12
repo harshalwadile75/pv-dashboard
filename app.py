@@ -4,19 +4,19 @@ import numpy as np
 import requests
 import matplotlib.pyplot as plt
 
-st.set_page_config("PVDevSim – Integrated Simulator", layout="wide")
-st.title("☀️ PVDevSim – Advanced BOM Reliability & Risk Simulator")
+st.set_page_config("PVDevSim Pro", layout="wide")
+st.title("☀️ PVDevSim – Advanced PV Module Reliability Simulator")
 
-# --- Load CSVs ---
+# Load required CSVs
 try:
     bom_df = pd.read_csv("full_material_bom_v3.csv")
     risk_df = pd.read_csv("enhanced_failure_risk_matrix.csv")
     weibull_df = pd.read_csv("weibull_parameters_by_supplier.csv")
 except Exception as e:
-    st.error(f"Missing required CSV file: {e}")
+    st.error(f"❌ Missing required file: {e}")
     st.stop()
 
-# --- City selection ---
+# City selection
 city_coords = {
     "Phoenix, USA": (33.45, -112.07),
     "Chennai, India": (13.08, 80.27),
@@ -48,7 +48,7 @@ avg_rh = weather_df["RH"].mean()
 avg_irr = weather_df["G(h)"].mean()
 uv_index = avg_irr / 50
 
-# --- Stress Profiles ---
+# Test Profiles
 test_profiles = {
     "None": {},
     "IEC Basic": {"UV": 0.3, "DH2000": 1.0, "TC200": 0.5},
@@ -58,25 +58,25 @@ test_profiles = {
 profile = st.sidebar.selectbox("🧪 Stress Profile", list(test_profiles.keys()))
 selected_tests = test_profiles.get(profile, {})
 
-# --- BOM Selection ---
+# BOM selector
 def select_bom(label):
     st.sidebar.header(f"🔧 {label}")
     selections = {}
     for comp in bom_df["Component"].unique():
-        options = bom_df[bom_df["Component"] == comp]["Type"].unique()
-        sel = st.sidebar.selectbox(f"{comp} – {label}", options, key=f"{label}-{comp}")
-        row = bom_df[(bom_df["Component"] == comp) & (bom_df["Type"] == sel)].iloc[0]
+        types = bom_df[bom_df["Component"] == comp]["Type"].unique()
+        selected = st.sidebar.selectbox(f"{comp} – {label}", types, key=f"{label}-{comp}")
+        row = bom_df[(bom_df["Component"] == comp) & (bom_df["Type"] == selected)].iloc[0]
         selections[comp] = row
     return selections
 
 bom1 = select_bom("BOM 1")
 bom2 = select_bom("BOM 2")
 
-# --- Modeling ---
-def arrhenius(temp, Ea=0.7, Tref=298):
+# Degradation modeling
+def arrhenius(temp, Ea=0.7):
     k = 8.617e-5
     T = temp + 273.15
-    return np.exp((Ea / k) * (1 / Tref - 1 / T))
+    return np.exp((Ea / k) * (1 / 298 - 1 / T))
 
 def weibull_survival(years, eta, beta):
     return np.exp(-(years / eta) ** beta)
@@ -84,13 +84,10 @@ def weibull_survival(years, eta, beta):
 def simulate_bom(bom, label):
     front_encap = bom["Encapsulant - Front"]["Type"]
     cell = bom["Cell"]["Type"]
-
-    # Find Weibull data
     mat_row = weibull_df[weibull_df["Material"] == front_encap]
     cell_row = weibull_df[weibull_df["Material"] == cell]
-
     if mat_row.empty or cell_row.empty:
-        st.warning(f"Weibull model not available for {label}")
+        st.warning(f"⚠️ Weibull missing for {label}")
         return None
 
     mat = mat_row.iloc[0]
@@ -99,18 +96,18 @@ def simulate_bom(bom, label):
 
     eta_m = mat["Base_Lifetime"] / arrhenius(avg_temp, mat["Ea"])
     eta_c = cell["Base_Lifetime"] / arrhenius(avg_temp, cell["Ea"])
-
     surv_m = weibull_survival(years, eta_m, mat["Beta"])
     surv_c = weibull_survival(years, eta_c, cell["Beta"])
 
     rh_factor = 1 + 0.01 * (avg_rh - 50)
     uv_factor = 1 + 0.02 * (uv_index - 5)
     stress_factor = 1 + 0.05 * sum(selected_tests.values())
-
     combined = (surv_m + surv_c) / 2 / (rh_factor * uv_factor * stress_factor)
+
     df = pd.DataFrame({"Year": years, f"{label} Reliability": combined * 100})
     return df
 
+# Risk Matrix
 def get_failures(material, test_keys):
     rows = []
     for t in test_keys:
@@ -121,18 +118,18 @@ def get_failures(material, test_keys):
             rows.append(match)
     return pd.concat(rows) if rows else pd.DataFrame(columns=risk_df.columns)
 
-# --- Run ---
+# Run simulation
 if st.sidebar.button("▶️ Simulate"):
 
-    st.subheader(f"📍 Location: {city}")
-    st.write(f"**Temp:** {avg_temp:.1f}°C | **RH:** {avg_rh:.1f}% | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index:** {uv_index:.2f}")
+    st.subheader(f"📍 {city} – Site Conditions")
+    st.write(f"**Temp:** {avg_temp:.1f} °C | **RH:** {avg_rh:.1f}% | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index:** {uv_index:.2f}")
 
     df1 = simulate_bom(bom1, "BOM 1")
     df2 = simulate_bom(bom2, "BOM 2")
 
     if df1 is not None and df2 is not None:
         result = pd.merge(df1, df2, on="Year")
-        st.subheader("📉 Reliability Comparison")
+        st.subheader("📉 Reliability Comparison (25 years)")
         st.line_chart(result.set_index("Year"))
         st.dataframe(result)
 
@@ -150,4 +147,4 @@ if st.sidebar.button("▶️ Simulate"):
         else:
             st.success("✅ No major risks found.")
     else:
-        st.info("ℹ️ Select a test profile to view failure risk.")
+        st.info("ℹ️ Select a test profile to view failure analysis.")
