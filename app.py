@@ -84,8 +84,8 @@ def weibull_survival(years, eta, beta):
 def simulate_bom(bom, label):
     front_encap = bom["Encapsulant - Front"]["Type"]
     cell = bom["Cell"]["Type"]
-    mat_row = weibull_df[weibull_df["Material"] == front_encap]
-    cell_row = weibull_df[weibull_df["Material"] == cell]
+    mat_row = weibull_df[weibull_df["Material"].str.lower() == front_encap.lower()]
+    cell_row = weibull_df[weibull_df["Material"].str.lower() == cell.lower()]
 
     years = np.arange(1, 26)
 
@@ -109,7 +109,7 @@ def simulate_bom(bom, label):
     combined = (surv_m + surv_c) / 2 / (rh_factor * uv_factor * stress_factor)
     return pd.DataFrame({"Year": years, f"{label} Reliability": combined * 100})
 
-# Risk Matrix
+# Failure Risk Matrix
 def get_failures(material, test_keys):
     rows = []
     for t in test_keys:
@@ -120,18 +120,51 @@ def get_failures(material, test_keys):
             rows.append(match)
     return pd.concat(rows) if rows else pd.DataFrame(columns=risk_df.columns)
 
+# Reliability summary metrics
+def show_degradation_summary(bom, label):
+    encap = bom["Encapsulant - Front"]["Type"]
+    cell = bom["Cell"]["Type"]
+    mat_row = weibull_df[weibull_df["Material"].str.lower() == encap.lower()]
+    cell_row = weibull_df[weibull_df["Material"].str.lower() == cell.lower()]
+
+    if mat_row.empty or cell_row.empty:
+        st.warning(f"⚠️ Cannot show degradation summary for {label}")
+        return
+
+    mat_ea = mat_row.iloc[0]["Ea"]
+    accel = arrhenius(avg_temp, mat_ea)
+
+    rh_factor = 1 + 0.01 * (avg_rh - 50)
+    uv_factor = 1 + 0.02 * (uv_index - 5)
+    stress_factor = 1 + 0.05 * sum(selected_tests.values())
+    base_deg = 0.5
+    deg_rate = base_deg * accel * rh_factor * uv_factor * stress_factor
+
+    year1 = deg_rate
+    year25 = year1 * 25 * 0.95
+    reliability = max(0, 100 - year25)
+
+    st.markdown(f"### 🧮 Degradation & Reliability Matrix – {label}")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Arrhenius Factor", f"{accel:.2f}")
+    col2.metric("Year 1 Loss", f"{year1:.2f}%")
+    col3.metric("25-Year Loss", f"{year25:.2f}%")
+    col4.metric("Reliability", f"{reliability:.1f}/100")
+
 # Run simulation
 if st.sidebar.button("▶️ Simulate"):
-
     st.subheader(f"📍 {city} – Site Conditions")
     st.write(f"**Temp:** {avg_temp:.1f} °C | **RH:** {avg_rh:.1f}% | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index:** {uv_index:.2f}")
 
     df1 = simulate_bom(bom1, "BOM 1")
     df2 = simulate_bom(bom2, "BOM 2")
 
+    show_degradation_summary(bom1, "BOM 1")
+    show_degradation_summary(bom2, "BOM 2")
+
     if not df1.empty and not df2.empty:
         result = pd.merge(df1, df2, on="Year")
-        st.subheader("📉 Reliability Comparison (25 years)")
+        st.subheader("📉 Reliability Over Time")
         st.line_chart(result.set_index("Year"))
         st.dataframe(result)
 
