@@ -1,144 +1,68 @@
 import streamlit as st
 import pandas as pd
-import requests
-from pvlib.pvsystem import PVSystem
-from pvlib.modelchain import ModelChain
-from pvlib.location import Location
+import numpy as np
 
-st.set_page_config("PV System Simulator", layout="wide")
-st.title("🔆 PVsyst-Like Solar Simulation App")
+st.set_page_config("PV Module Development Simulator", layout="wide")
+st.title("🔬 PVDevSim – PV Module Development Simulator")
 
-# --- Cities with coordinates ---
-cities = [
-    {"city": "Los Angeles, USA", "lat": 34.05, "lon": -118.25},
-    {"city": "New York, USA", "lat": 40.71, "lon": -74.01},
-    {"city": "London, UK", "lat": 51.51, "lon": -0.13},
-    {"city": "Tokyo, Japan", "lat": 35.68, "lon": 139.76},
-    {"city": "Delhi, India", "lat": 28.61, "lon": 77.20},
-    {"city": "Berlin, Germany", "lat": 52.52, "lon": 13.41},
-    {"city": "Sydney, Australia", "lat": -33.87, "lon": 151.21},
-    {"city": "São Paulo, Brazil", "lat": -23.55, "lon": -46.63},
-    {"city": "Cairo, Egypt", "lat": 30.04, "lon": 31.24},
-    {"city": "Cape Town, South Africa", "lat": -33.92, "lon": 18.42}
-]
+# --- Material Selection ---
+st.sidebar.header("🧪 Material Selection")
+encapsulant = st.sidebar.selectbox("Encapsulant Type", ["EVA", "POE", "TPU"])
+backsheet = st.sidebar.selectbox("Backsheet Type", ["TPT", "PET", "Co-ex"])
+glass_type = st.sidebar.selectbox("Glass Type", ["Standard", "AR-coated", "Glass-Glass"])
+cell_type = st.sidebar.selectbox("Cell Type", ["PERC", "TOPCon", "HJT", "IBC"])
+interconnect = st.sidebar.selectbox("Interconnection", ["Ribbon", "Wire", "Shingled"])
 
-modules = [
-    {"brand": "Qcells", "model": "Q.PEAK DUO ML-G10+", "power": 410},
-    {"brand": "Canadian Solar", "model": "HiKu6", "power": 450},
-    {"brand": "LONGi", "model": "Hi-MO 5m", "power": 500}
-]
+# --- Supplier Selection ---
+st.sidebar.header("🏭 Supplier / BOM")
+encapsulant_supplier = st.sidebar.selectbox("Encapsulant Supplier", ["DuPont", "Mitsui", "Hangzhou First"])
+backsheet_supplier = st.sidebar.selectbox("Backsheet Supplier", ["3M", "Cybrid", "Coveme"])
+glass_supplier = st.sidebar.selectbox("Glass Supplier", ["Xinyi", "Flat Glass", "CNBM"])
 
-inverters = [
-    {"brand": "SMA", "model": "Sunny Boy 5.0", "rated_power": 5000},
-    {"brand": "Huawei", "model": "SUN2000-6KTL", "rated_power": 6000},
-    {"brand": "Fronius", "model": "Primo 5.0", "rated_power": 5000}
-]
+# --- Environmental Simulation ---
+st.sidebar.header("🌤️ Environmental Conditions")
+location = st.sidebar.selectbox("Deployment Location", ["Arizona", "India", "Germany", "China", "Middle East"])
+damp_heat_hours = st.sidebar.slider("Damp Heat (Hours)", 0, 5000, 2000)
+thermal_cycles = st.sidebar.slider("Thermal Cycles", 0, 1000, 200)
 
-# --- Dropdown menus ---
-city_names = [c["city"] for c in cities]
-module_models = [f"{m['brand']} - {m['model']} ({m['power']}W)" for m in modules]
-inverter_models = [f"{i['brand']} - {i['model']} ({i['rated_power']}W)" for i in inverters]
+# --- Simulation Trigger ---
+simulate = st.sidebar.button("Run Simulation")
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header("📍 Location & Setup")
-    selected_city = st.selectbox("Select City", city_names)
-    city_data = next(c for c in cities if c["city"] == selected_city)
-    lat, lon = city_data["lat"], city_data["lon"]
-
-    tilt = st.slider("Tilt Angle (°)", 0, 60, 25)
-    azimuth = st.slider("Azimuth (°)", 0, 360, 180)
-
-    st.header("🔌 Components")
-    selected_module = st.selectbox("PV Module", module_models)
-    selected_inverter = st.selectbox("Inverter", inverter_models)
-
-    st.header("💰 Financials")
-    cost_per_watt = st.number_input("System Cost ($/W)", 0.5, 5.0, 1.2)
-    rate = st.number_input("Electricity Rate ($/kWh)", 0.05, 0.50, 0.12)
-    simulate = st.button("Run Simulation")
-
-# --- Get weather using Tomorrow.io ---
-def get_weather(lat, lon):
-    api_key = "F9mVExxjAYHfP46uUmRurwhkPdzr6ooO"  # Replace with your actual API key
-    url = (
-        f"https://api.tomorrow.io/v4/weather/forecast?"
-        f"location={lat},{lon}&fields=solarGHI,temperature"
-        f"&timesteps=1h&apikey={api_key}"
-    )
-
-    try:
-        r = requests.get(url)
-        if r.status_code != 200:
-            st.error(f"Weather fetch failed: {r.status_code}")
-            return pd.DataFrame()
-
-        data = r.json()
-        timelines = data.get("timelines", {})
-        hourly = timelines.get("hourly", [])
-        if not hourly or "intervals" not in hourly[0]:
-            st.error("No hourly weather intervals found.")
-            return pd.DataFrame()
-
-        intervals = hourly[0]["intervals"]
-        if not intervals:
-            st.error("Hourly intervals are empty.")
-            return pd.DataFrame()
-
-        times = [pd.to_datetime(i["startTime"]) for i in intervals]
-        ghi = [i["values"].get("solarGHI", 0) for i in intervals]
-        temp = [i["values"].get("temperature", 25) for i in intervals]
-
-        df = pd.DataFrame({"ghi": ghi, "temp_air": temp}, index=times)
-        return df.resample("M").mean()
-
-    except Exception as e:
-        st.error(f"Error fetching or parsing weather: {e}")
-        return pd.DataFrame()
-
-# --- Main App Logic ---
 if simulate:
-    mod = modules[module_models.index(selected_module)]
-    inv = inverters[inverter_models.index(selected_inverter)]
+    st.subheader("📈 Simulation Results")
 
-    st.subheader(f"☀️ Weather Data for {selected_city}")
-    weather = get_weather(lat, lon)
-    if weather.empty:
-        st.stop()
-    st.write(weather.head())
+    # Dummy performance & reliability estimation logic
+    degradation = 2 + (0.001 * damp_heat_hours) + (0.002 * thermal_cycles)
+    reliability_score = 100 - degradation
 
-    st.subheader("🔋 Energy Simulation")
-    location = Location(lat, lon, 'UTC')
-    system = PVSystem(
-        surface_tilt=tilt,
-        surface_azimuth=azimuth,
-        module_parameters={'pdc0': mod['power']},
-        inverter_parameters={'pdc': inv['rated_power']}
-    )
-    mc = ModelChain(system, location)
-    mc.weather = weather.rename(columns={'ghi': 'poa_global', 'temp_air': 'temp_air'})
-    mc.run_model_from_poa_irradiance(mc.weather['poa_global'], mc.weather['temp_air'])
-    energy = mc.ac.resample("M").sum() / 1000
+    # Material impact
+    if encapsulant == "POE":
+        degradation -= 0.5
+        reliability_score += 0.5
+    if backsheet == "PET":
+        degradation += 0.5
+        reliability_score -= 1
 
+    base_power = 420  # W
+    est_power_year_1 = base_power * (1 - degradation / 100)
+    pr = 80 + (np.random.rand() * 5 - 2.5)  # Random variation in PR
+
+    # Result table
     df = pd.DataFrame({
-        "Month": energy.index.month_name(),
-        "Energy (kWh)": energy.values
-    }).set_index("Month")
+        "Metric": ["Estimated Power (Year 1)", "Degradation (%)", "Reliability Score", "Performance Ratio"],
+        "Value": [f"{est_power_year_1:.1f} W", f"{degradation:.2f}%", f"{reliability_score:.1f}/100", f"{pr:.1f}%"]
+    })
 
-    st.subheader("📊 Monthly Energy Output")
-    st.bar_chart(df)
-    st.dataframe(df)
+    st.table(df)
 
-    st.subheader("📈 System Insights")
-    annual_kwh = df["Energy (kWh)"].sum()
-    system_kw = mod["power"] / 1000
-    cost = system_kw * 1000 * cost_per_watt
-    savings = annual_kwh * rate
-    payback = cost / savings if savings > 0 else None
-    pr = annual_kwh / (system_kw * 365 * 5) * 100  # Approximation
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Annual Output", f"{annual_kwh:.1f} kWh")
-    col2.metric("Estimated Savings", f"${savings:.2f}")
-    col3.metric("Payback Period", f"{payback:.1f} yrs" if payback else "N/A")
-    st.metric("Performance Ratio (est)", f"{pr:.1f}%")
+    # BOM & Summary
+    st.subheader("🛠️ Component Summary")
+    st.markdown(f"""
+    - **Encapsulant**: {encapsulant} ({encapsulant_supplier})  
+    - **Backsheet**: {backsheet} ({backsheet_supplier})  
+    - **Glass**: {glass_type} ({glass_supplier})  
+    - **Cell Type**: {cell_type}  
+    - **Interconnect**: {interconnect}  
+    - **Location**: {location}  
+    - **Test Conditions**: {damp_heat_hours}h Damp Heat, {thermal_cycles} Thermal Cycles  
+    """)
