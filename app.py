@@ -1,3 +1,4 @@
+# Existing imports remain unchanged
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,7 +8,7 @@ import matplotlib.pyplot as plt
 st.set_page_config("PVDevSim Pro", layout="wide")
 st.title("☀️ PVDevSim – Advanced PV Module Reliability Simulator")
 
-# Load required CSVs
+# Load CSVs
 try:
     bom_df = pd.read_csv("full_material_bom_v3.csv")
     risk_df = pd.read_csv("enhanced_failure_risk_matrix.csv")
@@ -16,7 +17,6 @@ except Exception as e:
     st.error(f"❌ Missing required file: {e}")
     st.stop()
 
-# City selection
 city_coords = {
     "Phoenix, USA": (33.45, -112.07),
     "Chennai, India": (13.08, 80.27),
@@ -58,7 +58,6 @@ test_profiles = {
 profile = st.sidebar.selectbox("🧪 Stress Profile", list(test_profiles.keys()))
 selected_tests = test_profiles.get(profile, {})
 
-# BOM selector
 def select_bom(label):
     st.sidebar.header(f"🔧 {label}")
     selections = {}
@@ -72,7 +71,9 @@ def select_bom(label):
 bom1 = select_bom("BOM 1")
 bom2 = select_bom("BOM 2")
 
-# Degradation modeling
+# Constants
+initial_power = 400  # watts
+
 def arrhenius(temp, Ea=0.7):
     k = 8.617e-5
     T = temp + 273.15
@@ -107,9 +108,16 @@ def simulate_bom(bom, label):
     stress_factor = 1 + 0.05 * sum(selected_tests.values())
 
     combined = (surv_m + surv_c) / 2 / (rh_factor * uv_factor * stress_factor)
-    return pd.DataFrame({"Year": years, f"{label} Reliability": combined * 100})
+    power = initial_power * combined
+    percent_loss = 100 - (power / initial_power * 100)
 
-# Failure Risk Matrix
+    return pd.DataFrame({
+        "Year": years,
+        f"{label} Reliability": combined * 100,
+        f"{label} Power (W)": power,
+        f"{label} Loss (%)": percent_loss
+    })
+
 def get_failures(material, test_keys):
     rows = []
     for t in test_keys:
@@ -120,7 +128,6 @@ def get_failures(material, test_keys):
             rows.append(match)
     return pd.concat(rows) if rows else pd.DataFrame(columns=risk_df.columns)
 
-# Reliability summary metrics
 def show_degradation_summary(bom, label):
     encap = bom["Encapsulant - Front"]["Type"]
     cell = bom["Cell"]["Type"]
@@ -143,15 +150,15 @@ def show_degradation_summary(bom, label):
     year1 = deg_rate
     year25 = year1 * 25 * 0.95
     reliability = max(0, 100 - year25)
+    power_25 = initial_power * (1 - year25 / 100)
 
     st.markdown(f"### 🧮 Degradation & Reliability Matrix – {label}")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Arrhenius Factor", f"{accel:.2f}")
     col2.metric("Year 1 Loss", f"{year1:.2f}%")
     col3.metric("25-Year Loss", f"{year25:.2f}%")
-    col4.metric("Reliability", f"{reliability:.1f}/100")
+    col4.metric("Estimated Power @ 25yr", f"{power_25:.1f}W")
 
-# Run simulation
 if st.sidebar.button("▶️ Simulate"):
     st.subheader(f"📍 {city} – Site Conditions")
     st.write(f"**Temp:** {avg_temp:.1f} °C | **RH:** {avg_rh:.1f}% | **Irradiance:** {avg_irr:.1f} W/m² | **UV Index:** {uv_index:.2f}")
@@ -163,10 +170,14 @@ if st.sidebar.button("▶️ Simulate"):
     show_degradation_summary(bom2, "BOM 2")
 
     if not df1.empty and not df2.empty:
-        result = pd.merge(df1, df2, on="Year")
-        st.subheader("📉 Reliability Over Time")
-        st.line_chart(result.set_index("Year"))
-        st.dataframe(result)
+        merged = pd.merge(df1, df2, on="Year")
+        st.subheader("📉 Reliability & Power Loss Over Time")
+        st.line_chart(merged.set_index("Year")[[col for col in merged.columns if "Reliability" in col or "Power" in col]])
+
+        st.subheader("📊 Power Loss (%) Comparison")
+        st.line_chart(merged.set_index("Year")[[col for col in merged.columns if "Loss" in col]])
+
+        st.dataframe(merged)
 
     st.subheader("🚨 Failure Risk Matrix")
     if selected_tests:
