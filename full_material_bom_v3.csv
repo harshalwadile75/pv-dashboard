@@ -1,18 +1,21 @@
-Component,Type,Supplier,Region,Certifications,Cost_per_m2,Weight (g/m2),Moisture Ingress Rating,Crosslinking (%)
-Encapsulant - Front,EVA,Hanwha,Asia,"UL, IEC",1.1,450,Medium,80
-Encapsulant - Front,POE,DuPont,USA,"UL, IEC",1.3,470,High,85
-Encapsulant - Front,EPE,3M,USA,"UL, IEC",1.2,460,Medium,82
-Encapsulant - Rear,EVA,Hanwha,Asia,"UL, IEC",1.1,450,Medium,80
-Encapsulant - Rear,POE,DuPont,USA,"UL, IEC",1.3,470,High,85
-Encapsulant - Rear,EPE,3M,USA,"UL, IEC",1.2,460,Medium,82
-Cell,Mono PERC,Longi,China,IEC,5.0,1800,Low,0
-Cell,TOPCon,Jinko,China,IEC,5.2,1850,Low,0
-Cell,HJT,REC,Korea,IEC,5.5,1900,Low,0
-Backsheet,PET,3M,USA,UL,0.9,250,Low,0
-Backsheet,TPT,DuPont,USA,"UL, IEC",1.0,260,Medium,0
-Junction Box,J-Box (Standard),Foxconn,Taiwan,TUV,0.5,120,Medium,0
-Junction Box,J-Box (Enhanced),TE,USA,"UL, IEC",0.7,140,High,0
-Busbar,Busbar (Cu-Ag),Luvata,Finland,IEC,0.4,80,Low,0
-Busbar,Busbar (Cu-Ni-Ag),Luvata,Finland,IEC,0.45,85,Low,0
-Wire,Wire (Standard),Generic,Global,IEC,0.2,50,Medium,0
-Wire,Wire (Tinned Copper),LS Cable,Korea,IEC,0.3,55,Low,0
+Component,Type,Supplier,Region,Certifications,Technology,Material Class,Used In,Comment
+Encapsulant - Front,EVA,Qcells,South Korea,IEC 61215;IEC 61730,EVA,Polymer,Module Front,Standard front encapsulant
+Encapsulant - Rear,EVA,Qcells,South Korea,IEC 61215;IEC 61730,EVA,Polymer,Module Rear,Standard rear encapsulant
+Encapsulant - Front,POE,DuPont,USA,IEC 62804;UL 1703,POE,Polymer,Module Front,High PID resistance
+Encapsulant - Rear,POE,DuPont,USA,IEC 62804;UL 1703,POE,Polymer,Module Rear,High PID resistance
+Encapsulant - Front,EPE,3M,USA,IEC 61215;UL 94,EPE,Polymer,Module Front,EVA+POE blend
+Encapsulant - Rear,EPE,3M,USA,IEC 61215;UL 94,EPE,Polymer,Module Rear,EVA+POE blend
+Backsheet,PVDF,Toray,Japan,IEC 61730;UL 1703,PVDF,Polymer,Backsheet,High UV resistance
+Backsheet,PET,Fujifilm,Japan,IEC 61730;UL 94,PET,Polymer,Backsheet,Cost effective
+Backsheet,PET-PVDF,SFC,China,IEC 61215,PET-PVDF,Composite,Backsheet,Mid-cost backsheet
+Cell,Mono PERC,Jinko,China,IEC 61215;IEC 62804,Mono PERC,Silicon,Cell,High efficiency
+Cell,TOPCon,Trina Solar,China,IEC 61215;IEC 62804,TOPCon,Silicon,Cell,Next-gen cell
+Cell,HJT,REC,Norway,IEC 61215;UL 61730,HJT,Silicon,Cell,High bifacial performance
+Glass,Tempered,AGC,Japan,IEC 61215;IEC 61730,Tempered Glass,Glass,Front Cover,Standard cover glass
+Glass,AR Coated,Xinyi Glass,China,IEC 61215;IEC 61730,AR Glass,Glass,Front Cover,Enhanced transmittance
+Frame,Aluminum,Qcells,South Korea,IEC 61730;UL 1703,Aluminum,Metal,Frame,Anodized frame
+Junction Box,TUV Certified,TE Connectivity,Germany,TUV;IEC 62790,Plastic,Electrical,Junction Box,Standard
+Wire,XLPE 4mm²,Havells,India,IEC 62930;TUV,XLPE,Cable,Wire,XLPE insulation
+Busbar,Silver-Coated Copper,Foxconn,Taiwan,IEC 61215;UL 1703,Copper,Metal,Busbar,Standard
+Silicone,RTV Dow 795,Dow,USA,UL 94;IEC 61215,RTV Silicone,Polymer,Sealing,Curing adhesive
+Silicone,Oxime Neutral,Henkel,Germany,IEC 61215;UL 94,Oxime Silicone,Polymer,Sealing,Edge sealant
